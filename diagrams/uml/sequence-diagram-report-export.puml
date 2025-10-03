@@ -1,0 +1,220 @@
+@startuml Sequence Diagram - Riport Generálás és Exportálás
+
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam ParticipantPadding 20
+skinparam BoxPadding 10
+
+title Riport Generálás és Exportálás Folyamata\n(Követelmény 2, 4, 5: Riport export, Lekérdezések, Mértékegységek)
+
+actor "Felhasználó" as User
+participant "Filament UI\n(Reports)" as UI
+participant "Report\nController" as Controller
+participant "Report\nService" as Service
+database "MySQL\nDatabase" as DB
+participant "Query\nBuilder" as QB
+participant "Export\nService" as Export
+participant "Export Job\n(Queue)" as Job
+database "File\nStorage" as Storage
+participant "Notification\nService" as Notify
+
+== Riport Paraméterezés ==
+
+User -> UI : Riport generálás indítása
+activate UI
+
+UI -> User : Riport típus választása
+User -> UI : "Google Analytics Traffic Report"
+
+UI -> User : Paraméterek megadása
+activate User
+
+note right of User
+  **Paraméterek:**
+  - Dátum: 2025-09-01 - 2025-09-30
+  - Property: example.com
+  - Metrikák: sessions, users, pageviews
+  - Csoportosítás: source, medium
+end note
+
+User -> UI : Paraméterek beküldése
+deactivate User
+
+UI -> Controller : generateReport(params)
+activate Controller
+
+== Lekérdezés Végrehajtása ==
+
+Controller -> Service : executeReport(params)
+activate Service
+
+Service -> QB : buildQuery(params)
+activate QB
+
+note right of QB
+  **Követelmény 4:**
+  Paraméterezhető lekérdezés
+
+  SELECT
+    date, source, medium,
+    SUM(sessions) as total_sessions,
+    SUM(users) as total_users,
+    SUM(pageviews) as total_pageviews,
+    AVG(bounce_rate) as avg_bounce_rate
+  FROM analytics_sessions
+  WHERE property_id = 1
+    AND date BETWEEN '2025-09-01' AND '2025-09-30'
+  GROUP BY date, source, medium
+end note
+
+QB --> Service : query
+deactivate QB
+
+Service -> DB : executeQuery()
+activate DB
+DB --> Service : raw_results (1,234 rows)
+deactivate DB
+
+== Adatfeldolgozás ==
+
+Service -> Service : aggregateData()
+
+note right of Service
+  **Követelmény 5:**
+  Különböző mértékegységek:
+  - Számlálók: sessions (123), users (98)
+  - Százalékok: bounce_rate (45.6%)
+  - Időtartam: avg_duration (00:03:24)
+end note
+
+Service -> Service : formatData()
+Service -> Service : calculateMetrics()
+
+Service --> Controller : report_data
+deactivate Service
+
+== Riport Megjelenítés ==
+
+Controller -> DB : INSERT INTO report_executions
+activate DB
+note right of DB
+  - report_id
+  - user_id
+  - parameters (JSON)
+  - executed_at
+  - execution_time_ms
+  - row_count
+end note
+DB --> Controller : logged
+deactivate DB
+
+Controller --> UI : report_result
+deactivate Controller
+
+UI --> User : Riport megjelenítése
+activate User
+
+note left of User
+  **Táblázat nézet:**
+  - Dátum szerint csoportosítva
+  - Source/Medium bontásban
+  - Összesítő sorok
+  - Grafikonok
+end note
+
+User -> UI : "Export to Excel"
+deactivate User
+
+== Export Folyamat ==
+
+UI -> Export : exportReport(format: 'excel')
+activate Export
+
+Export -> Job : dispatch(ExportJob, params)
+activate Job
+
+note right of Job
+  **Követelmény 2:**
+  Riport exportálása
+  XLS, CSV, TXT, XML formátumban
+end note
+
+Job -> Job : generateExcel()
+
+loop for each row
+  Job -> Job : writeRow(data)
+end
+
+Job -> Job : addStyles()
+Job -> Job : addCharts()
+
+Job -> Storage : saveFile('reports/traffic_2025-09.xlsx')
+activate Storage
+Storage --> Job : file_path
+deactivate Storage
+
+Job -> DB : INSERT INTO exports
+activate DB
+note right of DB
+  - user_id
+  - file_name
+  - file_path
+  - file_disk: 'local'
+  - exporter: 'App\\Exports\\TrafficReport'
+  - processed_rows: 1234
+  - completed_at: NOW()
+end note
+DB --> Job : export_record
+deactivate DB
+
+Job -> Notify : notify(ExportCompleted)
+activate Notify
+Notify --> Job : notification_sent
+deactivate Notify
+
+deactivate Job
+
+Export --> UI : export_queued
+deactivate Export
+
+== Export Letöltés ==
+
+Notify -> User : "Export kész!"
+activate User
+
+User -> UI : Letöltés gomb kattintás
+activate UI
+
+UI -> Storage : download('reports/traffic_2025-09.xlsx')
+activate Storage
+Storage --> UI : file_stream
+deactivate Storage
+
+UI --> User : File letöltése (2.3 MB)
+deactivate UI
+deactivate User
+
+== Alternatív Export Formátumok ==
+
+group alt Export formátum [CSV]
+  Job -> Job : generateCSV()
+  Job -> Storage : saveFile('.csv')
+else [XML]
+  Job -> Job : generateXML()
+  Job -> Storage : saveFile('.xml')
+else [PDF]
+  Job -> Job : generatePDF()
+  Job -> Storage : saveFile('.pdf')
+else [TXT]
+  Job -> Job : generateTXT()
+  Job -> Storage : saveFile('.txt')
+end
+
+note over User, Storage
+  **Követelmények teljesítése:**
+  ✅ Követelmény 2: Legalább 3 riport export (XLS, CSV, XML)
+  ✅ Követelmény 4: Paraméterezhető lekérdezések
+  ✅ Követelmény 5: Különböző mértékegységek kezelése
+end note
+
+@enduml

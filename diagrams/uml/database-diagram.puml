@@ -1,0 +1,579 @@
+@startuml Controlling System - Database Diagram (Google Analytics & Search Console)
+
+!define PRIMARY_KEY(x) <color:red><b>PK</b></color> x
+!define FOREIGN_KEY(x) <color:blue><b>FK</b></color> x
+
+skinparam linetype ortho
+
+' ============================================
+' LARAVEL CORE TABLES
+' ============================================
+
+entity "users" as users {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  name : VARCHAR(255)
+  email : VARCHAR(255) UNIQUE
+  email_verified_at : TIMESTAMP NULL
+  password : VARCHAR(255)
+  remember_token : VARCHAR(100) NULL
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "password_reset_tokens" as password_reset_tokens {
+  PRIMARY_KEY(email) : VARCHAR(255)
+  --
+  token : VARCHAR(255)
+  created_at : TIMESTAMP
+}
+
+entity "sessions" as sessions {
+  PRIMARY_KEY(id) : VARCHAR(255)
+  --
+  FOREIGN_KEY(user_id) : BIGINT UNSIGNED NULL
+  ip_address : VARCHAR(45) NULL
+  user_agent : TEXT NULL
+  payload : LONGTEXT
+  last_activity : INT
+  --
+  INDEX(user_id)
+  INDEX(last_activity)
+}
+
+' ============================================
+' LARAVEL QUEUE & JOBS
+' ============================================
+
+entity "jobs" as jobs {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  queue : VARCHAR(255)
+  payload : LONGTEXT
+  attempts : TINYINT UNSIGNED
+  reserved_at : INT UNSIGNED NULL
+  available_at : INT UNSIGNED
+  created_at : INT UNSIGNED
+  --
+  INDEX(queue)
+}
+
+entity "job_batches" as job_batches {
+  PRIMARY_KEY(id) : VARCHAR(255)
+  --
+  name : VARCHAR(255)
+  total_jobs : INT
+  pending_jobs : INT
+  failed_jobs : INT
+  failed_job_ids : LONGTEXT
+  options : MEDIUMTEXT NULL
+  cancelled_at : INT NULL
+  created_at : INT
+  finished_at : INT NULL
+}
+
+entity "failed_jobs" as failed_jobs {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  uuid : VARCHAR(255) UNIQUE
+  connection : TEXT
+  queue : TEXT
+  payload : LONGTEXT
+  exception : LONGTEXT
+  failed_at : TIMESTAMP
+}
+
+' ============================================
+' LARAVEL CACHE
+' ============================================
+
+entity "cache" as cache {
+  PRIMARY_KEY(key) : VARCHAR(255)
+  --
+  value : MEDIUMTEXT
+  expiration : INT
+}
+
+entity "cache_locks" as cache_locks {
+  PRIMARY_KEY(key) : VARCHAR(255)
+  --
+  owner : VARCHAR(255)
+  expiration : INT
+}
+
+' ============================================
+' FILAMENT IMPORT/EXPORT TABLES
+' ============================================
+
+entity "imports" as imports {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(user_id) : BIGINT UNSIGNED
+  completed_at : TIMESTAMP NULL
+  file_name : VARCHAR(255)
+  file_path : VARCHAR(255)
+  importer : VARCHAR(255)
+  processed_rows : INT UNSIGNED DEFAULT 0
+  total_rows : INT UNSIGNED
+  successful_rows : INT UNSIGNED DEFAULT 0
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(user_id)
+  FOREIGN KEY CONSTRAINT(user_id) CASCADE ON DELETE
+}
+
+entity "failed_import_rows" as failed_import_rows {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(import_id) : BIGINT UNSIGNED
+  data : JSON
+  validation_error : TEXT NULL
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(import_id)
+  FOREIGN KEY CONSTRAINT(import_id) CASCADE ON DELETE
+}
+
+entity "exports" as exports {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(user_id) : BIGINT UNSIGNED
+  completed_at : TIMESTAMP NULL
+  file_disk : VARCHAR(255)
+  file_name : VARCHAR(255) NULL
+  exporter : VARCHAR(255)
+  processed_rows : INT UNSIGNED DEFAULT 0
+  total_rows : INT UNSIGNED
+  successful_rows : INT UNSIGNED DEFAULT 0
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(user_id)
+  FOREIGN KEY CONSTRAINT(user_id) CASCADE ON DELETE
+}
+
+entity "notifications" as notifications {
+  PRIMARY_KEY(id) : UUID
+  --
+  type : VARCHAR(255)
+  notifiable_type : VARCHAR(255)
+  FOREIGN_KEY(notifiable_id) : BIGINT UNSIGNED
+  data : TEXT
+  read_at : TIMESTAMP NULL
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(notifiable_type, notifiable_id)
+}
+
+' ============================================
+' API CONFIGURATION (Filament Singular Resource)
+' ============================================
+
+entity "settings" as settings {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  google_service_account : JSON NULL
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+note right of settings
+  <b>Filament Singular Resource</b>
+  Singleton tábla (mindig 1 rekord)
+
+  <b>Google Service Account (Közös):</b>
+  ✅ GA4 Analytics API támogatott
+  ✅ Search Console API támogatott
+
+  <b>JSON struktúra:</b>
+  {
+    "type": "service_account",
+    "project_id": "...",
+    "private_key_id": "...",
+    "private_key": "...",
+    "client_email": "...",
+    "client_id": "..."
+  }
+
+  <b>Setup lépések:</b>
+  1. Service Account létrehozása GCP-ben
+  2. JSON key letöltése
+  3. SA hozzáadása GA4 property-hez
+  4. SA hozzáadása Search Console-hoz
+end note
+
+' ============================================
+' GOOGLE ANALYTICS TABLES
+' ============================================
+
+entity "analytics_properties" as analytics_properties {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  name : VARCHAR(255)
+  property_id : VARCHAR(100) UNIQUE
+  measurement_id : VARCHAR(100)
+  is_active : BOOLEAN DEFAULT true
+  last_sync_at : TIMESTAMP NULL
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(is_active)
+  INDEX(last_sync_at)
+}
+
+entity "analytics_sessions" as analytics_sessions {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
+  date : DATE
+  sessions : INT DEFAULT 0
+  users : INT DEFAULT 0
+  new_users : INT DEFAULT 0
+  bounce_rate : DECIMAL(5,2) DEFAULT 0
+  avg_session_duration : INT DEFAULT 0
+  pages_per_session : DECIMAL(5,2) DEFAULT 0
+  source : VARCHAR(255) NULL
+  medium : VARCHAR(255) NULL
+  campaign : VARCHAR(255) NULL
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(property_id)
+  INDEX(date)
+  INDEX(source, medium)
+  UNIQUE KEY(property_id, date, source, medium, campaign)
+}
+
+entity "analytics_pageviews" as analytics_pageviews {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
+  date : DATE
+  page_path : VARCHAR(1000)
+  page_title : VARCHAR(255)
+  pageviews : INT DEFAULT 0
+  unique_pageviews : INT DEFAULT 0
+  avg_time_on_page : INT DEFAULT 0
+  entrances : INT DEFAULT 0
+  bounce_rate : DECIMAL(5,2) DEFAULT 0
+  exit_rate : DECIMAL(5,2) DEFAULT 0
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(property_id)
+  INDEX(date)
+  INDEX(page_path(255))
+  UNIQUE KEY(property_id, date, page_path(500))
+}
+
+entity "analytics_events" as analytics_events {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
+  date : DATE
+  event_name : VARCHAR(255)
+  event_category : VARCHAR(255)
+  event_action : VARCHAR(255)
+  event_label : VARCHAR(255) NULL
+  event_count : INT DEFAULT 0
+  event_value : DECIMAL(15,2) NULL
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(property_id)
+  INDEX(date)
+  INDEX(event_name)
+  UNIQUE KEY(property_id, date, event_name, event_category, event_action, event_label)
+}
+
+entity "analytics_conversions" as analytics_conversions {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
+  date : DATE
+  goal_name : VARCHAR(255)
+  goal_completions : INT DEFAULT 0
+  goal_value : DECIMAL(15,2) DEFAULT 0
+  conversion_rate : DECIMAL(5,2) DEFAULT 0
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(property_id)
+  INDEX(date)
+  UNIQUE KEY(property_id, date, goal_name)
+}
+
+' ============================================
+' GOOGLE SEARCH CONSOLE TABLES
+' ============================================
+
+entity "search_console_properties" as search_console_properties {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  name : VARCHAR(255)
+  site_url : VARCHAR(500) UNIQUE
+  verification_method : VARCHAR(100)
+  is_verified : BOOLEAN DEFAULT false
+  is_active : BOOLEAN DEFAULT true
+  last_sync_at : TIMESTAMP NULL
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(is_active)
+  INDEX(last_sync_at)
+}
+
+entity "search_queries" as search_queries {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
+  date : DATE
+  query : VARCHAR(500)
+  country : VARCHAR(2) NULL
+  device : ENUM('desktop', 'mobile', 'tablet')
+  impressions : INT DEFAULT 0
+  clicks : INT DEFAULT 0
+  ctr : DECIMAL(5,2) DEFAULT 0
+  position : DECIMAL(5,2) DEFAULT 0
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(property_id)
+  INDEX(date)
+  INDEX(query(255))
+  INDEX(device)
+  UNIQUE KEY(property_id, date, query(255), country, device)
+}
+
+entity "search_pages" as search_pages {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
+  date : DATE
+  page_url : VARCHAR(1000)
+  country : VARCHAR(2) NULL
+  device : ENUM('desktop', 'mobile', 'tablet')
+  impressions : INT DEFAULT 0
+  clicks : INT DEFAULT 0
+  ctr : DECIMAL(5,2) DEFAULT 0
+  position : DECIMAL(5,2) DEFAULT 0
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(property_id)
+  INDEX(date)
+  INDEX(page_url(255))
+  INDEX(device)
+  UNIQUE KEY(property_id, date, page_url(500), country, device)
+}
+
+entity "search_sitemaps" as search_sitemaps {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
+  sitemap_url : VARCHAR(500)
+  last_submitted : TIMESTAMP NULL
+  is_pending : BOOLEAN DEFAULT false
+  warnings : INT DEFAULT 0
+  errors : INT DEFAULT 0
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(property_id)
+  UNIQUE KEY(property_id, sitemap_url)
+}
+
+' ============================================
+' KPI & METRICS
+' ============================================
+
+entity "kpis" as kpis {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  code : VARCHAR(50) UNIQUE
+  name : VARCHAR(255)
+  description : TEXT NULL
+  data_source : ENUM('analytics', 'search_console', 'manual', 'calculated')
+  formula : TEXT NULL
+  category : ENUM('traffic', 'engagement', 'conversion', 'seo', 'custom')
+  format : ENUM('percentage', 'number', 'ratio', 'duration')
+  target_value : DECIMAL(15,2) NULL
+  is_active : BOOLEAN DEFAULT true
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(data_source)
+  INDEX(category)
+  INDEX(is_active)
+}
+
+entity "kpi_values" as kpi_values {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(kpi_id) : BIGINT UNSIGNED
+  period : DATE
+  planned_value : DECIMAL(15,2) NULL
+  actual_value : DECIMAL(15,2)
+  variance : DECIMAL(15,2)
+  variance_percentage : DECIMAL(5,2)
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(kpi_id)
+  INDEX(period)
+  UNIQUE KEY(kpi_id, period)
+}
+
+' ============================================
+' REPORTS & QUERIES
+' ============================================
+
+entity "reports" as reports {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(user_id) : BIGINT UNSIGNED NULL
+  name : VARCHAR(255)
+  description : TEXT NULL
+  type : ENUM('analytics', 'search_console', 'combined', 'custom')
+  is_predefined : BOOLEAN DEFAULT false
+  is_public : BOOLEAN DEFAULT false
+  configuration : JSON
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(user_id)
+  INDEX(type)
+  INDEX(is_predefined)
+}
+
+entity "saved_queries" as saved_queries {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(user_id) : BIGINT UNSIGNED
+  name : VARCHAR(255)
+  description : TEXT NULL
+  query_type : ENUM('analytics', 'search_console', 'combined', 'custom')
+  parameters : JSON NULL
+  query_definition : JSON
+  is_parameterized : BOOLEAN DEFAULT false
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  --
+  INDEX(user_id)
+  INDEX(query_type)
+}
+
+entity "report_executions" as report_executions {
+  PRIMARY_KEY(id) : BIGINT UNSIGNED
+  --
+  FOREIGN_KEY(report_id) : BIGINT UNSIGNED
+  FOREIGN_KEY(user_id) : BIGINT UNSIGNED
+  parameters : JSON NULL
+  executed_at : TIMESTAMP
+  execution_time_ms : INT
+  row_count : INT
+  --
+  INDEX(report_id)
+  INDEX(user_id)
+  INDEX(executed_at)
+}
+
+' ============================================
+' RELATIONSHIPS
+' ============================================
+
+' Laravel Core
+users ||--o{ sessions
+users ||--o{ imports
+users ||--o{ exports
+users ||--o{ notifications
+
+' Filament Import/Export
+imports ||--o{ failed_import_rows
+
+' Google Analytics
+analytics_properties ||--o{ analytics_sessions
+analytics_properties ||--o{ analytics_pageviews
+analytics_properties ||--o{ analytics_events
+analytics_properties ||--o{ analytics_conversions
+
+' Google Search Console
+search_console_properties ||--o{ search_queries
+search_console_properties ||--o{ search_pages
+search_console_properties ||--o{ search_sitemaps
+
+' KPI
+kpis ||--o{ kpi_values
+
+' Reports
+users ||--o{ reports
+users ||--o{ saved_queries
+users ||--o{ report_executions
+reports ||--o{ report_executions
+
+note top of users
+  <b>Laravel Core - Users</b>
+  Alap felhasználó tábla
+  Filament auth támogatással
+end note
+
+note top of sessions
+  <b>Laravel Sessions</b>
+  Munkamenet kezelés
+end note
+
+note top of jobs
+  <b>Laravel Queue System</b>
+  Háttérfolyamatok kezelése
+  Import/Export job-ok
+end note
+
+note top of cache
+  <b>Laravel Cache</b>
+  Teljesítmény optimalizálás
+end note
+
+note top of imports
+  <b>Filament Import/Export</b>
+  Beépített CSV/Excel import
+  UI automatikusan generálva
+  Sikertelen sorok: failed_import_rows
+end note
+
+note top of analytics_properties
+  <b>Google Analytics 4</b>
+  - Sessions & Users
+  - Pageviews & Events
+  - Conversions & Goals
+  - Source/Medium tracking
+end note
+
+note top of search_console_properties
+  <b>Google Search Console</b>
+  - Search queries
+  - Page performance
+  - CTR & Position
+  - Sitemap management
+end note
+
+note top of kpis
+  <b>KPI Mutatószámok</b>
+  - Traffic metrics
+  - Engagement metrics
+  - Conversion metrics
+  - SEO metrics
+  Terv-tény összehasonlítás
+end note
+
+note top of reports
+  <b>Riport Rendszer</b>
+  Export formátumok:
+  CSV, XML, Excel, PDF
+  Paraméterezhető
+  Ütemezett futtatás
+end note
+
+@enduml

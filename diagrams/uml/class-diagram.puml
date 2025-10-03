@@ -1,0 +1,492 @@
+@startuml Controlling System - Class Diagram (Google Analytics & Search Console Focus)
+
+!define PRIMARY_KEY <&key>
+!define FOREIGN_KEY <&link-intact>
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+package "Laravel Core" {
+    class User {
+        PRIMARY_KEY id: int
+        name: string
+        email: string
+        password: string
+        email_verified_at: timestamp
+        remember_token: string
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +reports(): HasMany
+        +savedQueries(): HasMany
+    }
+
+    class PasswordResetToken {
+        PRIMARY_KEY email: string
+        token: string
+        created_at: timestamp
+    }
+
+    class Session {
+        PRIMARY_KEY id: string
+        FOREIGN_KEY user_id: int (nullable)
+        ip_address: string
+        user_agent: text
+        payload: longtext
+        last_activity: int
+    }
+}
+
+package "Laravel Queue & Jobs" {
+    class Job {
+        PRIMARY_KEY id: bigint
+        queue: string
+        payload: longtext
+        attempts: tinyint
+        reserved_at: int (nullable)
+        available_at: int
+        created_at: int
+    }
+
+    class FailedJob {
+        PRIMARY_KEY id: bigint
+        uuid: string
+        connection: text
+        queue: text
+        payload: longtext
+        exception: longtext
+        failed_at: timestamp
+    }
+
+    class JobBatch {
+        PRIMARY_KEY id: string
+        name: string
+        total_jobs: int
+        pending_jobs: int
+        failed_jobs: int
+        failed_job_ids: longtext
+        options: mediumtext
+        cancelled_at: int (nullable)
+        created_at: int
+        finished_at: int (nullable)
+    }
+}
+
+package "Laravel Cache" {
+    class Cache {
+        PRIMARY_KEY key: string
+        value: mediumtext
+        expiration: int
+    }
+
+    class CacheLock {
+        PRIMARY_KEY key: string
+        owner: string
+        expiration: int
+    }
+}
+
+package "Filament Core Tables" {
+    class Import {
+        PRIMARY_KEY id: bigint
+        FOREIGN_KEY user_id: bigint
+        completed_at: timestamp (nullable)
+        file_name: string
+        file_path: string
+        importer: string
+        processed_rows: int unsigned
+        total_rows: int unsigned
+        successful_rows: int unsigned
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +user(): BelongsTo
+        +failedRows(): HasMany
+    }
+
+    class FailedImportRow {
+        PRIMARY_KEY id: bigint
+        FOREIGN_KEY import_id: bigint
+        data: json
+        validation_error: text (nullable)
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +import(): BelongsTo
+    }
+
+    class Export {
+        PRIMARY_KEY id: bigint
+        FOREIGN_KEY user_id: bigint
+        completed_at: timestamp (nullable)
+        file_disk: string
+        file_name: string (nullable)
+        exporter: string
+        processed_rows: int unsigned
+        total_rows: int unsigned
+        successful_rows: int unsigned
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +user(): BelongsTo
+    }
+
+    class Notification {
+        PRIMARY_KEY id: uuid
+        type: string
+        notifiable_type: string
+        FOREIGN_KEY notifiable_id: bigint
+        data: text
+        read_at: timestamp (nullable)
+        created_at: timestamp
+        updated_at: timestamp
+    }
+}
+
+package "API Configuration (Filament Singular Resource)" {
+    class Settings {
+        PRIMARY_KEY id: int
+        google_service_account: json (nullable)
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +getServiceAccount(): array
+        +setServiceAccount(array): void
+        +testGAConnection(): bool
+        +testGSCConnection(): bool
+        +getGoogleClient(): Google\Client
+    }
+}
+
+note right of Settings
+  <b>Filament Singular Resource</b>
+  Mindig csak 1 rekord (Singleton)
+
+  <b>Google Service Account (Közös):</b>
+  ✅ Mindkét API támogatja
+  - Google Analytics Data API
+  - Google Search Console API
+
+  <b>JSON struktúra:</b>
+  {
+    "type": "service_account",
+    "project_id": "...",
+    "private_key_id": "...",
+    "private_key": "...",
+    "client_email": "sa@project.iam.gserviceaccount.com",
+    "client_id": "..."
+  }
+
+  <b>Használat:</b>
+  putenv('GOOGLE_APPLICATION_CREDENTIALS=...');
+  $client->useApplicationDefaultCredentials();
+end note
+
+package "Google Analytics Integration" {
+    class AnalyticsProperty {
+        PRIMARY_KEY id: int
+        name: string
+        property_id: string (GA4 Property ID)
+        measurement_id: string
+        is_active: boolean
+        last_sync_at: timestamp
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +sessions(): HasMany
+        +pageviews(): HasMany
+        +events(): HasMany
+        +conversions(): HasMany
+        +sync(): void
+    }
+
+    class AnalyticsSession {
+        PRIMARY_KEY id: int
+        FOREIGN_KEY property_id: int
+        date: date
+        sessions: int
+        users: int
+        new_users: int
+        bounce_rate: decimal(5,2)
+        avg_session_duration: int
+        pages_per_session: decimal(5,2)
+        source: string
+        medium: string
+        campaign: string (nullable)
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +property(): BelongsTo
+    }
+
+    class AnalyticsPageview {
+        PRIMARY_KEY id: int
+        FOREIGN_KEY property_id: int
+        date: date
+        page_path: string
+        page_title: string
+        pageviews: int
+        unique_pageviews: int
+        avg_time_on_page: int
+        entrances: int
+        bounce_rate: decimal(5,2)
+        exit_rate: decimal(5,2)
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +property(): BelongsTo
+    }
+
+    class AnalyticsEvent {
+        PRIMARY_KEY id: int
+        FOREIGN_KEY property_id: int
+        date: date
+        event_name: string
+        event_category: string
+        event_action: string
+        event_label: string (nullable)
+        event_count: int
+        event_value: decimal(15,2) (nullable)
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +property(): BelongsTo
+    }
+
+    class AnalyticsConversion {
+        PRIMARY_KEY id: int
+        FOREIGN_KEY property_id: int
+        date: date
+        goal_name: string
+        goal_completions: int
+        goal_value: decimal(15,2)
+        conversion_rate: decimal(5,2)
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +property(): BelongsTo
+    }
+}
+
+package "Google Search Console Integration" {
+    class SearchConsoleProperty {
+        PRIMARY_KEY id: int
+        name: string
+        site_url: string
+        verification_method: string
+        is_verified: boolean
+        is_active: boolean
+        last_sync_at: timestamp
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +queries(): HasMany
+        +pages(): HasMany
+        +sitemaps(): HasMany
+        +sync(): void
+    }
+
+    class SearchQuery {
+        PRIMARY_KEY id: int
+        FOREIGN_KEY property_id: int
+        date: date
+        query: string
+        country: string (nullable)
+        device: enum(desktop, mobile, tablet)
+        impressions: int
+        clicks: int
+        ctr: decimal(5,2)
+        position: decimal(5,2)
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +property(): BelongsTo
+    }
+
+    class SearchPage {
+        PRIMARY_KEY id: int
+        FOREIGN_KEY property_id: int
+        date: date
+        page_url: string
+        country: string (nullable)
+        device: enum(desktop, mobile, tablet)
+        impressions: int
+        clicks: int
+        ctr: decimal(5,2)
+        position: decimal(5,2)
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +property(): BelongsTo
+    }
+
+    class SearchSitemap {
+        PRIMARY_KEY id: int
+        FOREIGN_KEY property_id: int
+        sitemap_url: string
+        last_submitted: timestamp
+        is_pending: boolean
+        warnings: int
+        errors: int
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +property(): BelongsTo
+    }
+}
+
+package "KPI & Metrics" {
+    class KPI {
+        PRIMARY_KEY id: int
+        code: string
+        name: string
+        description: text
+        data_source: enum(analytics, search_console, manual, calculated)
+        formula: text
+        category: enum(traffic, engagement, conversion, seo, custom)
+        format: enum(percentage, number, ratio, duration)
+        target_value: decimal(15,2) (nullable)
+        is_active: boolean
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +calculate(period): decimal
+        +kpiValues(): HasMany
+    }
+
+    class KPIValue {
+        PRIMARY_KEY id: int
+        FOREIGN_KEY kpi_id: int
+        period: date
+        planned_value: decimal(15,2) (nullable)
+        actual_value: decimal(15,2)
+        variance: decimal(15,2)
+        variance_percentage: decimal(5,2)
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +kpi(): BelongsTo
+        +calculateVariance(): void
+    }
+}
+
+package "Reports & Dashboards" {
+    class Report {
+        PRIMARY_KEY id: int
+        FOREIGN_KEY user_id: int (nullable)
+        name: string
+        description: text
+        type: enum(analytics, search_console, combined, custom)
+        is_predefined: boolean
+        is_public: boolean
+        configuration: json
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +user(): BelongsTo
+        +executions(): HasMany
+        +execute(params): ReportResult
+        +export(format): file
+    }
+
+    class SavedQuery {
+        PRIMARY_KEY id: int
+        FOREIGN_KEY user_id: int
+        name: string
+        description: text
+        query_type: enum(analytics, search_console, combined, custom)
+        parameters: json
+        query_definition: json
+        is_parameterized: boolean
+        created_at: timestamp
+        updated_at: timestamp
+        --
+        +user(): BelongsTo
+        +execute(params): Collection
+    }
+
+    class ReportExecution {
+        PRIMARY_KEY id: int
+        FOREIGN_KEY report_id: int
+        FOREIGN_KEY user_id: int
+        parameters: json
+        executed_at: timestamp
+        execution_time_ms: int
+        row_count: int
+        --
+        +report(): BelongsTo
+        +user(): BelongsTo
+    }
+}
+
+' Laravel Core Relationships
+User "1" -- "*" Session
+User "1" -- "*" Import
+User "1" -- "*" Export
+User "1" -- "*" Notification
+
+' Filament Import/Export Relationships
+Import "1" -- "*" FailedImportRow
+
+' API Configuration (used by sync services)
+Settings "1" ..> AnalyticsProperty : "Service Account\nfor API auth"
+Settings "1" ..> SearchConsoleProperty : "Service Account\nfor API auth"
+
+' Google Analytics Relationships
+AnalyticsProperty "1" -- "*" AnalyticsSession
+AnalyticsProperty "1" -- "*" AnalyticsPageview
+AnalyticsProperty "1" -- "*" AnalyticsEvent
+AnalyticsProperty "1" -- "*" AnalyticsConversion
+
+' Google Search Console Relationships
+SearchConsoleProperty "1" -- "*" SearchQuery
+SearchConsoleProperty "1" -- "*" SearchPage
+SearchConsoleProperty "1" -- "*" SearchSitemap
+
+' KPI Relationships
+KPI "1" -- "*" KPIValue
+
+' Report Relationships
+User "1" -- "*" Report
+User "1" -- "*" SavedQuery
+User "1" -- "*" ReportExecution
+Report "1" -- "*" ReportExecution
+
+note top of User
+  Laravel alap User modell
+  + Filament auth támogatás
+end note
+
+note right of Import
+  Filament beépített import rendszer
+  CSV, Excel fájlok importálása
+  Sikertelen sorok: FailedImportRow
+end note
+
+note right of AnalyticsProperty
+  Google Analytics 4 integráció
+  Automatikus adatgyűjtés
+  Napi szinkronizálás
+end note
+
+note right of SearchConsoleProperty
+  Google Search Console API
+  SEO metrikák
+  Keresési teljesítmény
+end note
+
+note right of KPI
+  Webes mutatószámok:
+  - Traffic metrics
+  - Engagement metrics
+  - Conversion metrics
+  - SEO metrics
+end note
+
+note right of Report
+  Exportálható formátumok:
+  XLS, CSV, TXT, XML, PDF
+  Paraméterezhető riportok
+end note
+
+@enduml

@@ -1,0 +1,183 @@
+@startuml KPI Számítás és Monitoring Folyamata
+
+!theme plain
+skinparam ActivityBackgroundColor #FFF3E0
+skinparam ActivityBorderColor #F57C00
+skinparam ActivityFontSize 12
+skinparam ArrowColor #F57C00
+
+title KPI Számítás és Monitoring Folyamata\n(Követelmény 3 & 7: Mutatószámok és modellek)
+
+|Admin (Filament UI)|
+start
+:KPI definiálása;
+note right
+  **Követelmény 3:**
+  Mutatószámok definiálása
+  Terv-tény összehasonlítás
+end note
+
+partition "KPI Beállítások" {
+  :KPI kód (egyedi);
+  :KPI név;
+  :Kategória kiválasztása;
+  note right
+    - Traffic (forgalom)
+    - Engagement (interakció)
+    - Conversion (konverzió)
+    - SEO
+    - Custom (egyedi)
+  end note
+  :Adatforrás megadása;
+  note right
+    - Google Analytics
+    - Search Console
+    - Manual (kézi)
+    - Calculated (számított)
+  end note
+  :Képlet definiálása;
+  :Formátum beállítása;
+  note right
+    - Percentage (%)
+    - Number (szám)
+    - Ratio (arány)
+    - Duration (időtartam)
+  end note
+  :Célérték megadása\n(target_value);
+}
+
+|Database (kpis)|
+:KPI mentése;
+
+|Ütemező (Laravel Scheduler)|
+:Napi KPI számítás\nindítása;
+
+|KPI Calculator Service|
+:Aktív KPI-k\nlekérdezése;
+
+repeat
+  :KPI feldolgozása;
+
+  if (Adatforrás típus?) then (Analytics)
+    |Database|
+    :analytics_sessions\nadatok lekérdezése;
+    :analytics_pageviews\nadatok lekérdezése;
+    :analytics_conversions\nadatok lekérdezése;
+
+    |KPI Calculator|
+    :Metrikák számítása;
+    partition "Példa Traffic KPI-k" {
+      :Összes munkamenet;
+      :Új felhasználók;
+      :Bounce rate;
+      :Átlagos időtartam;
+    }
+  elseif (Search Console) then
+    |Database|
+    :search_queries\nadatok lekérdezése;
+    :search_pages\nadatok lekérdezése;
+
+    |KPI Calculator|
+    :SEO metrikák számítása;
+    partition "Példa SEO KPI-k" {
+      :Átlagos pozíció;
+      :CTR (Click-Through Rate);
+      :Impressions növekedés;
+      :Clicks növekedés;
+    }
+  elseif (Calculated) then
+    |KPI Calculator|
+    :Képlet értékelése;
+    note right
+      **Követelmény 7:**
+      Analízis modellek
+      Számítások képletekkel
+    end note
+    :Más KPI értékek\nfelhasználása;
+    :Komplex számítás;
+  else (Manual)
+    |Admin|
+    :Kézi érték bevitel;
+  endif
+
+  |KPI Calculator|
+  :Tervezett érték\nlekérdezése (ha van);
+  :Tényleges érték\nkiszámítása;
+  :Eltérés számítása;
+  note right
+    variance = actual - planned
+    variance_% = (variance / planned) * 100
+  end note
+
+  |Database (kpi_values)|
+  :KPI érték mentése;
+  partition "KPI Value rekord" {
+    :period (dátum);
+    :planned_value;
+    :actual_value;
+    :variance;
+    :variance_percentage;
+  }
+
+  |Alert Service|
+  if (Eltérés jelentős?) then (yes)
+    note right
+      Küszöbérték alapján
+      (pl. >10% eltérés)
+    end note
+    :Riasztás generálása;
+
+    |Notification|
+    :Admin értesítés;
+    :Email vagy\nrendszer notification;
+  endif
+
+repeat while (Van még KPI?) is (yes)
+->no;
+
+|Dashboard Service|
+:KPI Dashboard\nfrissítése;
+
+partition "Dashboard Elemek" {
+  :KPI kártyák;
+  note right
+    **Követelmény 3:**
+    Egységes megjelenítés
+  end note
+  :Trend grafikonok;
+  :Terv-tény összehasonlító\ngrafikonok;
+  :Színkódolás eltérésnél;
+  note right
+    Zöld: célérték felett
+    Sárga: közel célértékhez
+    Piros: célérték alatt
+  end note
+}
+
+|Cache|
+:Dashboard adatok\ncache-be mentése;
+note right
+  Gyors betöltés
+  a felhasználóknak
+end note
+
+|Filament UI|
+:KPI Dashboard\nmegjelenítése;
+
+if (Felhasználó\nrészletek kér?) then (yes)
+  :KPI drill-down;
+  :Időbeli részletezés;
+  :Grafikon nagyítás;
+  :Adatok exportálása;
+endif
+
+|Report Service|
+:Havi KPI riport\ngenerálása;
+:Vezetői összefoglaló\nkészítése;
+
+|Notification|
+:Havi riport\nkiküldése emailben;
+
+stop
+
+@enduml

@@ -1,0 +1,195 @@
+@startuml Sequence Diagram - Automatikus Adatszinkronizáció
+
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam ParticipantPadding 20
+skinparam BoxPadding 10
+
+title Automatikus Napi Adatszinkronizáció Folyamata\n(Követelmény 1 & 6: Adatbázis kapcsolatok és max 24h adatok)
+
+actor "Laravel\nScheduler" as Scheduler
+participant "SyncJob\n(Queue)" as Job
+database "Settings\n(Singleton)" as Settings
+participant "Google\nClient" as Client
+participant "Google Analytics\nAPI" as GA4
+participant "Google Search\nConsole API" as GSC
+database "MySQL\nDatabase" as DB
+participant "Cache" as Cache
+participant "Notification\nService" as Notify
+
+== Napi 02:00 - Google Analytics Szinkronizáció ==
+
+Scheduler -> Job : dispatch(AnalyticsSyncJob)
+activate Job
+
+Job -> Settings : getServiceAccount()
+activate Settings
+Settings --> Job : service_account_json
+deactivate Settings
+
+Job -> Client : new Google\Client()
+activate Client
+Job -> Client : useApplicationDefaultCredentials()
+Job -> Client : addScope(ANALYTICS_READONLY)
+Client --> Job : authenticated_client
+deactivate Client
+
+Job -> GA4 : runReport(property_id, date_range)
+activate GA4
+
+note right of GA4
+  **API Request:**
+  - Property ID
+  - Date: yesterday
+  - Metrics: sessions, users, pageviews
+  - Dimensions: date, source, medium
+end note
+
+GA4 --> Job : analytics_data
+deactivate GA4
+
+Job -> Job : validateData()
+Job -> Job : normalizeData()
+
+loop for each metric type
+  Job -> DB : batchInsert(analytics_sessions)
+  activate DB
+  DB --> Job : inserted
+  deactivate DB
+
+  Job -> DB : batchInsert(analytics_pageviews)
+  activate DB
+  DB --> Job : inserted
+  deactivate DB
+
+  Job -> DB : batchInsert(analytics_events)
+  activate DB
+  DB --> Job : inserted
+  deactivate DB
+end
+
+Job -> DB : UPDATE analytics_properties\nSET last_sync_at = NOW()
+activate DB
+DB --> Job : updated
+deactivate DB
+
+Job -> Cache : flush('analytics_*')
+activate Cache
+Cache --> Job : flushed
+deactivate Cache
+
+Job -> Notify : send(AdminNotification)
+activate Notify
+note right of Notify
+  "GA4 szinkronizáció sikeres
+  1250 sessions imported"
+end note
+Notify --> Job : sent
+deactivate Notify
+
+deactivate Job
+
+== Napi 03:00 - Search Console Szinkronizáció ==
+
+Scheduler -> Job : dispatch(SearchConsoleSyncJob)
+activate Job
+
+Job -> Settings : getServiceAccount()
+activate Settings
+Settings --> Job : service_account_json
+deactivate Settings
+
+Job -> Client : new Google\Client()
+activate Client
+Job -> Client : useApplicationDefaultCredentials()
+Job -> Client : addScope(WEBMASTERS_READONLY)
+Client --> Job : authenticated_client
+deactivate Client
+
+Job -> GSC : searchanalytics.query(site_url, filters)
+activate GSC
+
+note right of GSC
+  **API Request:**
+  - Site URL
+  - Date: yesterday
+  - Dimensions: query, page, device
+  - Type: web
+end note
+
+GSC --> Job : search_analytics_data
+deactivate GSC
+
+Job -> Job : validateData()
+Job -> Job : normalizeData()
+
+loop for each data type
+  Job -> DB : batchInsert(search_queries)
+  activate DB
+  DB --> Job : inserted
+  deactivate DB
+
+  Job -> DB : batchInsert(search_pages)
+  activate DB
+  DB --> Job : inserted
+  deactivate DB
+end
+
+Job -> DB : UPDATE search_console_properties\nSET last_sync_at = NOW()
+activate DB
+DB --> Job : updated
+deactivate DB
+
+Job -> Cache : flush('search_console_*')
+activate Cache
+Cache --> Job : flushed
+deactivate Cache
+
+Job -> Notify : send(AdminNotification)
+activate Notify
+note right of Notify
+  "GSC szinkronizáció sikeres
+  3450 queries imported"
+end note
+Notify --> Job : sent
+deactivate Notify
+
+deactivate Job
+
+== Hiba Esetén ==
+
+Scheduler -> Job : dispatch(AnalyticsSyncJob)
+activate Job
+
+Job -> GA4 : runReport()
+activate GA4
+GA4 --> Job : API Error (401/403/500)
+deactivate GA4
+
+Job -> Job : logError(exception)
+
+Job -> DB : INSERT INTO failed_jobs
+activate DB
+DB --> Job : logged
+deactivate DB
+
+Job -> Notify : send(ErrorNotification)
+activate Notify
+note right of Notify
+  "GA4 szinkronizáció sikertelen!
+  Error: Invalid credentials"
+end note
+Notify --> Job : sent
+deactivate Notify
+
+deactivate Job
+
+note over Scheduler, Notify
+  **Követelmény 6 teljesítése:**
+  - Napi automatikus szinkronizáció
+  - last_sync_at mezők frissítése
+  - Max 24 órás adatok biztosítása
+  - Hibakezelés és értesítések
+end note
+
+@enduml

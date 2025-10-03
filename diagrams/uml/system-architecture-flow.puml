@@ -1,0 +1,283 @@
+@startuml Rendszer Architektúra és Főfolyamat
+
+!theme plain
+skinparam rectangle {
+  BackgroundColor #E1F5FE
+  BorderColor #01579B
+  FontSize 12
+}
+skinparam component {
+  BackgroundColor #B2DFDB
+  BorderColor #00695C
+  FontSize 11
+}
+skinparam database {
+  BackgroundColor #F3E5F5
+  BorderColor #4A148C
+}
+
+title Kontrolling és Döntéstámogatás Rendszer\nTeljes Architektúra és Folyamat
+
+' ============================================
+' EXTERNAL SYSTEMS
+' ============================================
+
+package "Külső Adatforrások" {
+  component [Google Analytics 4\nAPI] as GA4
+  component [Google Search Console\nAPI] as GSC
+  component [CSV/XML/Excel\nFájlok] as Files
+}
+
+' ============================================
+' LARAVEL APPLICATION
+' ============================================
+
+rectangle "Laravel 12 Alkalmazás" {
+
+  ' Frontend Layer
+  package "Filament v4 Admin Panel" {
+    component [Dashboard\n(KPI-k, Grafikonok)] as Dashboard
+    component [Riportok\n(Előre definiált & Ad-hoc)] as Reports
+    component [Import/Export\nKezelő] as ImportUI
+    component [KPI Kezelő\n(Definiálás, Célértékek)] as KPIManager
+    component [Lekérdezés Építő\n(Query Builder)] as QueryBuilder
+    component [API Beállítások\n(Singular Resource)] as SettingsUI
+    note right of SettingsUI
+      **Filament Singular Resource:**
+      - Google Service Account (közös)
+      - JSON key feltöltés
+      - Connection test
+    end note
+  }
+
+  ' Application Layer
+  package "Üzleti Logika" {
+    component [Analytics Sync\nService] as AnalyticsSync
+    component [Search Console Sync\nService] as GSCSync
+    component [Import/Export\nService] as ImportService
+    component [KPI Calculator\nService] as KPICalc
+    component [Report Generator\nService] as ReportGen
+    component [Export Builder\nService] as ExportBuilder
+  }
+
+  ' Background Jobs
+  package "Háttérfolyamatok (Laravel Queue)" {
+    component [Napi Szinkronizáció\nJob] as SyncJob
+    component [Import Feldolgozó\nJob] as ImportJob
+    component [Export Generáló\nJob] as ExportJob
+    component [KPI Számító\nJob] as KPIJob
+    note right of SyncJob
+      **Követelmény 6:**
+      Napi ütemezett
+      adatbetöltés
+    end note
+  }
+
+  ' Scheduler
+  component [Laravel Scheduler\n(Cron)] as Scheduler
+  note left of Scheduler
+    Ütemezett feladatok:
+    - Napi 02:00 - GA4 sync
+    - Napi 03:00 - GSC sync
+    - Napi 04:00 - KPI számítás
+    - Heti - Riport generálás
+  end note
+}
+
+' ============================================
+' DATA LAYER
+' ============================================
+
+database "MySQL Adatbázis" {
+  folder "Laravel Core" {
+    [users]
+    [sessions]
+    [jobs]
+    [cache]
+  }
+
+  folder "API Configuration" {
+    [settings]
+    note right
+      **Singleton tábla:**
+      Közös Service Account (JSON)
+      - Google Analytics API
+      - Search Console API
+    end note
+  }
+
+  folder "Filament Import/Export" {
+    [imports]
+    [failed_import_rows]
+    [exports]
+  }
+
+  folder "Google Analytics" {
+    [analytics_properties]
+    [analytics_sessions]
+    [analytics_pageviews]
+    [analytics_events]
+    [analytics_conversions]
+  }
+
+  folder "Search Console" {
+    [search_console_properties]
+    [search_queries]
+    [search_pages]
+    [search_sitemaps]
+  }
+
+  folder "KPI & Riportok" {
+    [kpis]
+    [kpi_values]
+    [reports]
+    [saved_queries]
+    [report_executions]
+  }
+}
+
+' ============================================
+' STORAGE
+' ============================================
+
+database "File Storage" {
+  folder "Import Fájlok" {
+    [CSV fájlok]
+    [XML fájlok]
+    [Excel fájlok]
+  }
+
+  folder "Export Fájlok" {
+    [Generált XLS]
+    [Generált CSV]
+    [Generált PDF]
+    [Generált XML]
+  }
+}
+
+' ============================================
+' NOTIFICATIONS
+' ============================================
+
+component [Email\nÉrtesítések] as Email
+component [Rendszer\nNotification-ök] as Notifications
+
+' ============================================
+' CONNECTIONS - DATA IMPORT FLOW
+' ============================================
+
+SettingsUI -down-> [settings] : Save Service Account JSON
+
+[settings] -right-> AnalyticsSync : Service Account
+[settings] -right-> GSCSync : Service Account (közös)
+
+GA4 -down-> AnalyticsSync : API Request\n(Service Account auth)
+GSC -down-> GSCSync : API Request\n(Service Account auth)
+Files -down-> ImportUI : Fájl feltöltés
+
+AnalyticsSync -down-> SyncJob : Queue dispatch
+GSCSync -down-> SyncJob : Queue dispatch
+ImportUI -down-> ImportJob : Queue dispatch
+
+SyncJob --> [analytics_sessions] : Insert/Update
+SyncJob --> [analytics_pageviews] : Insert/Update
+SyncJob --> [analytics_events] : Insert/Update
+SyncJob --> [analytics_conversions] : Insert/Update
+SyncJob --> [search_queries] : Insert/Update
+SyncJob --> [search_pages] : Insert/Update
+
+ImportJob --> [imports] : Create record
+ImportJob --> [failed_import_rows] : Failed rows
+
+' ============================================
+' CONNECTIONS - KPI CALCULATION
+' ============================================
+
+Scheduler -down-> KPIJob : Daily trigger
+KPIManager -down-> [kpis] : Define KPIs
+
+KPIJob --> [analytics_sessions] : Read data
+KPIJob --> [search_queries] : Read data
+KPICalc -down-> KPIJob : Calculate
+KPIJob --> [kpi_values] : Save values
+
+[kpi_values] --> Dashboard : Display KPIs
+
+' ============================================
+' CONNECTIONS - REPORTING
+' ============================================
+
+QueryBuilder --> ReportGen : Build query
+Reports --> ReportGen : Execute report
+
+ReportGen --> [analytics_sessions] : Query
+ReportGen --> [analytics_pageviews] : Query
+ReportGen --> [search_queries] : Query
+ReportGen --> [kpi_values] : Query
+
+ReportGen --> [report_executions] : Log execution
+ReportGen --> Dashboard : Display results
+
+Reports --> ExportBuilder : Export request
+ExportBuilder --> ExportJob : Queue dispatch
+ExportJob --> [exports] : Create record
+ExportJob --> [Generált XLS] : Save file
+ExportJob --> [Generált CSV] : Save file
+ExportJob --> [Generált PDF] : Save file
+
+' ============================================
+' CONNECTIONS - NOTIFICATIONS
+' ============================================
+
+SyncJob --> Notifications : Import status
+KPIJob --> Notifications : KPI alerts
+ExportJob --> Email : Export ready
+
+' ============================================
+' CACHE
+' ============================================
+
+Dashboard --> [cache] : Cache data
+ReportGen --> [cache] : Cache results
+
+' ============================================
+' NOTES
+' ============================================
+
+note bottom of "MySQL Adatbázis"
+  **Követelmény 1:**
+  Közvetlen adatbázis kapcsolat
+
+  **Követelmény 6:**
+  Max 24 órás adatok
+  (last_sync_at mezők)
+end note
+
+note bottom of "File Storage"
+  **Követelmény 2:**
+  Legalább 3 riport
+  exportálása XLS, CSV,
+  TXT vagy XML formátumban
+end note
+
+note top of "Filament v4 Admin Panel"
+  **Követelmény 3:**
+  Mutatószámok definiálása
+  Egységes megjelenítés
+
+  **Követelmény 4:**
+  Előre definiált és
+  paraméterezhető lekérdezések
+
+  **Követelmény 5:**
+  Különböző mértékegységek
+  kezelése (%, szám, idő)
+end note
+
+note top of "Háttérfolyamatok (Laravel Queue)"
+  **Követelmény 7:**
+  Analízis modellek
+  Számítások, képletek
+end note
+
+@enduml

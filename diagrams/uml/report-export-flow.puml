@@ -1,0 +1,146 @@
+@startuml Riport Generálás és Exportálás Folyamata
+
+!theme plain
+skinparam ActivityBackgroundColor #E8F5E9
+skinparam ActivityBorderColor #388E3C
+skinparam ActivityFontSize 12
+skinparam ArrowColor #388E3C
+
+title Riport Generálás és Exportálás Folyamata\n(Követelmény 2 & 4: Riport export és lekérdezések)
+
+|Felhasználó (Filament UI)|
+start
+:Riport generálás\nindítása;
+
+if (Riport típus?) then (Előre definiált)
+  note right
+    **Követelmény 4:**
+    Előre definiált
+    lekérdezések
+  end note
+  :Előre definiált\nriport kiválasztása;
+  :Paraméterek\nmegadása (opcionális);
+else (Ad-hoc / Mentett)
+  note right
+    **Követelmény 4:**
+    Paraméterezhető
+    lekérdezések
+  end note
+  :Mentett lekérdezés\nválasztása vagy új létrehozása;
+  :Szűrők beállítása;
+  partition "Paraméterek" {
+    :Dátum tartomány;
+    :GA Property vagy\nGSC Property;
+    :Metrikák kiválasztása;
+    :Dimenziók beállítása;
+  }
+endif
+
+|Report Service|
+:Lekérdezés\nösszeállítása;
+
+if (Adatforrás?) then (Google Analytics)
+  |Database|
+  :analytics_sessions\nlekérdezése;
+  :analytics_pageviews\nlekérdezése;
+  :analytics_events\nlekérdezése;
+  :analytics_conversions\nlekérdezése;
+elseif (Search Console) then
+  |Database|
+  :search_queries\nlekérdezése;
+  :search_pages\nlekérdezése;
+else (Kombinált)
+  |Database|
+  :GA + GSC adatok\negyesítése;
+  :JOIN műveletek;
+endif
+
+|Report Service|
+:Adatok aggregálása;
+:Számítások elvégzése;
+note right
+  **Követelmény 5:**
+  Különböző mértékegységek:
+  - Számlálók (pageviews, clicks)
+  - Százalékok (CTR, bounce rate)
+  - Idő (avg session duration)
+end note
+
+:Formázás a\nmegjelenítéshez;
+
+|ReportExecution|
+:Futtatás logolása;
+partition "Metrikák rögzítése" {
+  :executed_at;
+  :execution_time_ms;
+  :row_count;
+  :parameters (JSON);
+}
+
+|Filament UI|
+:Riport megjelenítése\ntáblázatban;
+:Grafikonok\ngenerálása;
+
+:Felhasználó export\nformátum választása;
+
+switch (Export formátum?)
+case (Excel/XLS)
+  note right
+    **Követelmény 2:**
+    Legalább 3 riport
+    exportálása XLS, CSV,
+    TXT vagy XML formátumban
+  end note
+  |Export Service|
+  :Excel fájl\ngenerálása;
+  :Formázás alkalmazása;
+  :Stílusok, színek;
+case (CSV)
+  |Export Service|
+  :CSV fájl\ngenerálása;
+  :UTF-8 encoding;
+  :Fejléc sor hozzáadása;
+case (XML)
+  |Export Service|
+  :XML struktúra\nlétrehozása;
+  :Adatok XML\nformázása;
+case (PDF)
+  |Export Service|
+  :PDF generálása;
+  :Layout alkalmazása;
+  :Grafikonok beágyazása;
+case (TXT)
+  |Export Service|
+  :Egyszerű szöveges\nfájl létrehozása;
+  :Tab-delimited formátum;
+endswitch
+
+|Export Job (Queue)|
+:Fájl létrehozása\nstorage-ban;
+
+|Database (exports)|
+:Export rekord\nlétrehozása;
+partition "Export adatok" {
+  :file_name;
+  :file_path;
+  :file_disk;
+  :exporter típus;
+  :processed_rows;
+  :completed_at;
+}
+
+|Notification|
+:Felhasználó értesítése;
+:Export kész notification;
+
+|Filament UI|
+:Letöltés link\nmegjelenítése;
+
+:Felhasználó letölti\na fájlt;
+
+|Export Cleanup (Scheduled)|
+:Régi exportok\ntörlése (30 nap után);
+
+stop
+
+@enduml

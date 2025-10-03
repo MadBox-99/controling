@@ -1,0 +1,166 @@
+@startuml Adatimport és Szinkronizáció Folyamat
+
+!theme plain
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1976D2
+skinparam ActivityFontSize 12
+skinparam ArrowColor #1976D2
+
+title Adatimport és Szinkronizáció Folyamata\n(Követelmény 1 & 6: Adatbázis kapcsolatok és napi frissítés)
+
+|Ütemező (Laravel Scheduler)|
+start
+:Napi adatszinkronizáció\nindítása (Cron);
+note right
+  **Követelmény 6:**
+  Legalább napi egyszeri
+  ütemezett adatbetöltés
+end note
+
+|Settings (Singleton)|
+:GA Service Account\nbetöltése settings táblából;
+note right
+  **Filament Singular Resource:**
+  settings tábla (1 rekord)
+  google_analytics_service_account JSON
+end note
+
+partition "GA4 Service Account" {
+  :credentials.json;
+  :project_id;
+  :client_email;
+  :private_key;
+}
+
+|Google Analytics API|
+:Service Account\nauthentication;
+note right
+  **Autentikáció:**
+  JWT token generálás
+  Google API scope-okkal
+end note
+
+:Google Analytics\nadatok lekérése;
+partition "GA4 Adatok" {
+  :Sessions adatok;
+  :Pageviews adatok;
+  :Events adatok;
+  :Conversions adatok;
+}
+
+|Import Job (Queue)|
+:Adatok validálása;
+if (Validáció OK?) then (yes)
+  :Adatok normalizálása;
+  :Batch insert\nadatbázisba;
+
+  |Database|
+  :analytics_sessions\ntábla frissítése;
+  :analytics_pageviews\ntábla frissítése;
+  :analytics_events\ntábla frissítése;
+  :analytics_conversions\ntábla frissítése;
+
+  |Import Job (Queue)|
+  :Property last_sync_at\nfrissítése;
+  :Import státusz:\nCOMPLETED;
+else (no)
+  :Import státusz:\nFAILED;
+  :Hibák logolása;
+
+  |Notification|
+  :Admin értesítés\na hibáról;
+endif
+
+|Settings (Singleton)|
+:Service Account\nbetöltése (ugyanaz);
+note right
+  **Ugyanaz a Service Account:**
+  google_service_account JSON
+end note
+
+|Google Search Console API|
+:Service Account\nauthentication;
+note right
+  **Autentikáció:**
+  $client->useApplicationDefaultCredentials()
+  Scope: webmasters.readonly
+end note
+
+:Search Console\nadatok lekérése;
+partition "GSC Adatok" {
+  :Search Queries;
+  :Page Performance;
+  :Sitemaps;
+}
+
+|Import Job (Queue)|
+:Adatok validálása;
+if (Validáció OK?) then (yes)
+  :Adatok normalizálása;
+  :Batch insert\nadatbázisba;
+
+  |Database|
+  :search_queries\ntábla frissítése;
+  :search_pages\ntábla frissítése;
+  :search_sitemaps\ntábla frissítése;
+
+  |Import Job (Queue)|
+  :Property last_sync_at\nfrissítése;
+  :Import státusz:\nCOMPLETED;
+else (no)
+  :Import státusz:\nFAILED;
+  :Hibák logolása;
+
+  |Notification|
+  :Admin értesítés\na hibáról;
+endif
+
+|Filament Import (CSV/XML)|
+:Felhasználó feltölt\nCSV/XML fájlt;
+note right
+  **Követelmény 1:**
+  Különböző adatforrások
+  (CSV, XML, Excel)
+end note
+
+:Filament Import\nfeldolgozás indul;
+
+|Import Job|
+:Fájl beolvasása\nsor-sorról;
+
+repeat
+  :Sor feldolgozása;
+  if (Validáció OK?) then (yes)
+    :Adatok mentése\nadatbázisba;
+    :successful_rows++;
+  else (no)
+    :Hiba mentése\nfailed_import_rows;
+    note left
+      JSON adattárolás
+      + validációs hiba
+    end note
+  endif
+repeat while (Van még sor?) is (yes)
+->no;
+
+:Import befejezése;
+:completed_at\nbeállítása;
+
+|Notification|
+:Felhasználó értesítése\naz importról;
+note right
+  Sikeres/Sikertelen
+  sorok száma
+end note
+
+|Cache|
+:Frissített adatok\ncache-be mentése;
+note right
+  **Teljesítmény:**
+  Gyakran használt
+  adatok gyorsítótára
+end note
+
+stop
+
+@enduml

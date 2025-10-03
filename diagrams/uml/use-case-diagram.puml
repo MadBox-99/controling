@@ -1,0 +1,198 @@
+@startuml Kontrolling Rendszer - Use Case Diagram
+
+!theme plain
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Admin\n(Rendszergazda)" as Admin
+actor "Felhasználó\n(Kontrolling Szakértő)" as User
+actor "Google Analytics API" as GA4 <<External System>>
+actor "Google Search Console API" as GSC <<External System>>
+actor "Laravel Scheduler" as Scheduler <<System>>
+
+rectangle "Kontrolling és Döntéstámogatás Rendszer" {
+
+  ' ============================================
+  ' API KONFIGURÁCIÓ
+  ' ============================================
+
+  package "API Beállítások" {
+    usecase "UC1: Service Account\nbeállítása" as UC1
+    usecase "UC2: API kapcsolat\ntesztelése" as UC2
+
+    note right of UC1
+      **Filament Singular Resource**
+      - JSON key feltöltés
+      - Egy Service Account
+        mindkét API-hoz
+    end note
+  }
+
+  ' ============================================
+  ' ADATIMPORT
+  ' ============================================
+
+  package "Adatimport és Szinkronizáció" {
+    usecase "UC3: Google Analytics\nadatok importálása" as UC3
+    usecase "UC4: Search Console\nadatok importálása" as UC4
+    usecase "UC5: CSV/XML fájl\nimportálása" as UC5
+    usecase "UC6: Automatikus napi\nszinkronizáció" as UC6
+
+    note right of UC6
+      **Követelmény 6:**
+      Max 24 órás adatok
+      Napi ütemezett futás
+    end note
+  }
+
+  ' ============================================
+  ' KPI KEZELÉS
+  ' ============================================
+
+  package "KPI és Mutatószámok" {
+    usecase "UC7: KPI definiálása" as UC7
+    usecase "UC8: Célértékek\nmegadása" as UC8
+    usecase "UC9: Terv-tény\nösszehasonlítás" as UC9
+    usecase "UC10: KPI Dashboard\nmegtekintése" as UC10
+
+    note right of UC7
+      **Követelmény 3:**
+      Mutatószámok definiálása
+      Egységes megjelenítés
+    end note
+  }
+
+  ' ============================================
+  ' RIPORTOK
+  ' ============================================
+
+  package "Riportok és Lekérdezések" {
+    usecase "UC11: Előre definiált\nriport futtatása" as UC11
+    usecase "UC12: Ad-hoc lekérdezés\nkészítése" as UC12
+    usecase "UC13: Paraméterezhető\nlekérdezés mentése" as UC13
+    usecase "UC14: Riport exportálása\n(XLS/CSV/XML/PDF)" as UC14
+
+    note right of UC11
+      **Követelmény 4:**
+      Előre definiált és
+      paraméterezhető lekérdezések
+    end note
+
+    note right of UC14
+      **Követelmény 2:**
+      Legalább 3 riport
+      XLS, CSV, TXT, XML formátumban
+    end note
+  }
+
+  ' ============================================
+  ' ANALITIKA
+  ' ============================================
+
+  package "Analízis és Modellek" {
+    usecase "UC15: Elemzési modell\nlétrehozása" as UC15
+    usecase "UC16: Szcenárió\nelemzés futtatása" as UC16
+    usecase "UC17: Trend\nelemzés megtekintése" as UC17
+
+    note right of UC15
+      **Követelmény 7:**
+      Költségszámítási és
+      elemzési modellek
+    end note
+  }
+
+  ' ============================================
+  ' FELHASZNÁLÓI KEZELÉS
+  ' ============================================
+
+  package "Rendszer Adminisztráció" {
+    usecase "UC18: Felhasználók\nkezelése" as UC18
+    usecase "UC19: Import történet\nmegtekintése" as UC19
+    usecase "UC20: Sikertelen import\nsorok javítása" as UC20
+  }
+}
+
+' ============================================
+' ADMIN CONNECTIONS
+' ============================================
+
+Admin --> UC1 : beállít
+Admin --> UC2 : tesztel
+Admin --> UC18 : kezel
+Admin --> UC19 : megtekint
+Admin --> UC20 : javít
+
+' ============================================
+' USER CONNECTIONS
+' ============================================
+
+User --> UC5 : feltölt
+User --> UC7 : definiál
+User --> UC8 : megad
+User --> UC9 : összehasonlít
+User --> UC10 : megtekint
+User --> UC11 : futtat
+User --> UC12 : készít
+User --> UC13 : ment
+User --> UC14 : exportál
+User --> UC15 : létrehoz
+User --> UC16 : futtat
+User --> UC17 : megtekint
+
+' ============================================
+' SCHEDULER CONNECTIONS
+' ============================================
+
+Scheduler --> UC6 : indít
+
+' ============================================
+' EXTERNAL API CONNECTIONS
+' ============================================
+
+UC3 --> GA4 : <<uses>>
+UC4 --> GSC : <<uses>>
+UC6 ..> UC3 : <<include>>
+UC6 ..> UC4 : <<include>>
+
+' ============================================
+' INTERNAL DEPENDENCIES
+' ============================================
+
+UC3 ..> UC1 : <<requires>>
+UC4 ..> UC1 : <<requires>>
+UC2 ..> UC1 : <<requires>>
+
+UC9 ..> UC7 : <<requires>>
+UC9 ..> UC8 : <<requires>>
+UC10 ..> UC9 : <<uses>>
+
+UC11 ..> UC3 : <<uses data>>
+UC11 ..> UC4 : <<uses data>>
+UC12 ..> UC3 : <<uses data>>
+UC12 ..> UC4 : <<uses data>>
+
+UC14 ..> UC11 : <<extends>>
+UC14 ..> UC12 : <<extends>>
+
+UC16 ..> UC15 : <<requires>>
+
+UC20 ..> UC5 : <<fixes>>
+
+' ============================================
+' NOTES
+' ============================================
+
+note bottom of "Kontrolling és Döntéstámogatás Rendszer"
+  **Laravel 12 + Filament v4**
+
+  **Főbb követelmények:**
+  1. Adatbázis kapcsolatok (GA4, GSC, CSV/XML)
+  2. Riport export (XLS, CSV, TXT, XML, PDF)
+  3. Mutatószámok (KPI) definiálása
+  4. Előre definiált és ad-hoc lekérdezések
+  5. Különböző mértékegységek kezelése
+  6. Napi adatszinkronizáció (max 24h)
+  7. Elemzési modellek
+end note
+
+@enduml
