@@ -16,14 +16,15 @@ return new class extends Migration
     {
         Schema::create('kpi_values', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId(Kpi::class)->index()->unique()->constrained()->cascadeOnDelete();
+            $table->foreignIdFor(Kpi::class)->constrained()->cascadeOnDelete();
             $table->date('period')->index();
             $table->decimal('planned_value', 15, 2)->nullable();
-            $table->decimal('actual_value', 15, 2);
-            $table->decimal('variance', 15, 2);
-            $table->decimal('variance_percentage', 5, 2);
+            $table->decimal('actual_value', 15, 2)->nullable();
+            $table->decimal('variance', 15, 2)->nullable();
+            $table->decimal('variance_percentage', 5, 2)->nullable();
             $table->timestamps();
 
+            $table->unique(['kpi_id', 'period']);
         });
     }
 

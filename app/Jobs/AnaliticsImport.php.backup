@@ -2,16 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Pages;
+namespace App\Jobs;
 
 use App\Enums\GoogleAnalitycs\OrderByType;
-use App\Enums\NavigationGroup;
-use App\Jobs\AnaliticsImport;
+use App\Models\AnalyticsSession;
 use App\Models\AnalyticsSettings;
 use App\Models\Settings;
-use Filament\Actions\Action;
+use Carbon\Carbon;
 use Filament\Notifications\Notification;
-use Filament\Pages\Page;
 use Google\Client;
 use Google\Service\AnalyticsData;
 use Google\Service\AnalyticsData\DateRange;
@@ -22,33 +20,29 @@ use Google\Service\AnalyticsData\MetricOrderBy;
 use Google\Service\AnalyticsData\OrderBy;
 use Google\Service\AnalyticsData\RunReportRequest;
 use Google\Service\AnalyticsData\RunReportResponse;
-use Illuminate\Support\Collection;
+use Illuminate\Bus\Batchable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
-use UnitEnum;
 
-final class ManualSync extends Page
+final class AnaliticsImport implements ShouldQueue
 {
-    public ?array $data = [];
+    use Batchable;
+    use Queueable;
 
-    protected string $view = 'filament.pages.manual-sync';
-
-    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Configuration;
-
-    protected static ?int $navigationSort = 98;
-
-    public function syncAction(): Action
+    /**
+     * Create a new job instance.
+     */
+    public function __construct()
     {
-        return Action::make('sync')
-            ->label('Start Sync')
-            ->button()
-            ->color('primary')
-            ->action('performSync');
+        //
     }
 
-    public function performSync(): void
+    /**
+     * Execute the job.
+     */
+    public function handle(): void
     {
-        AnaliticsImport::dispatch();
-
         $settings = Settings::query()->first();
 
         if (! $settings || ! $settings->google_service_account) {
@@ -58,7 +52,7 @@ final class ManualSync extends Page
                 ->danger()
                 ->send();
 
-            return;
+            $this->fail('Google Service Account credentials not configured.');
         }
 
         if (! $settings->property_id) {
@@ -68,7 +62,7 @@ final class ManualSync extends Page
                 ->danger()
                 ->send();
 
-            return;
+            $this->fail('GA4 Property ID not configured.');
         }
 
         $analyticsSettings = AnalyticsSettings::query()->first();
@@ -80,7 +74,7 @@ final class ManualSync extends Page
                 ->danger()
                 ->send();
 
-            return;
+            $this->fail('Analytics Settings not configured.');
         }
 
         $client = new Client();
@@ -159,14 +153,31 @@ final class ManualSync extends Page
 
             $processedData[] = $rowData;
         }
-
-        dump(new Collection($processedData));
-
+        $collection = collect($processedData ?? []);
         Notification::make()
             ->title('Manual sync started successfully.')
             ->body('The synchronization process has been initiated.')
             ->success()
             ->send();
+        foreach ($collection as $data) {
+
+            $date = isset($data['date']) ? Carbon::createFromFormat('Ymd', $data['date'])->format('Y-m-d') : null;
+
+            AnalyticsSession::updateOrCreate([
+                'date' => $date,
+            ], [
+                'date' => $date,
+                'sessions' => $data['sessions'] ?? null,
+                'users' => $data['users'] ?? null,
+                'new_users' => $data['newUsers'] ?? null,
+                'bounce_rate' => $data['bounceRate'] ?? null,
+                'avg_session_duration' => $data['avgSessionDuration'] ?? null,
+                'pages_per_session' => $data['pagesPerSession'] ?? null,
+                'source' => $data['source'] ?? null,
+                'medium' => $data['medium'] ?? null,
+                'campaign' => $data['campaign'] ?? null,
+            ]);
+        }
 
     }
 }

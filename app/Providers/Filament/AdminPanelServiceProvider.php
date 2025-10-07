@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\Login;
+use BezhanSalleh\GoogleAnalytics\GoogleAnalyticsPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -14,7 +15,6 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
-use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -32,6 +32,8 @@ final class AdminPanelServiceProvider extends PanelProvider
             ->path('admin')
             ->login(Login::class)
             ->profile()
+            ->brandLogo(asset('images/logo.png'))
+            ->brandLogoHeight('3rem')
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -43,7 +45,6 @@ final class AdminPanelServiceProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,
-                FilamentInfoWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -58,6 +59,10 @@ final class AdminPanelServiceProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+            ])
+            ->plugins([
+                // Register your Filament plugins here
+                GoogleAnalyticsPlugin::make(),
             ]);
     }
 }

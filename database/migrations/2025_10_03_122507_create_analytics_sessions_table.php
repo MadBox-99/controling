@@ -26,9 +26,9 @@ return new class extends Migration
             $table->string('medium')->nullable();
             $table->string('campaign')->nullable();
             $table->timestamps();
+
             $table->index('date');
-            $table->index(['source', 'medium']);
-            $table->unique(['date', 'source', 'medium', 'campaign'], 'analytics_sessions_unique');
+            $table->unique(['date', 'source', 'medium', 'campaign']);
         });
     }
 

@@ -10,12 +10,15 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "bezhansalleh/filament-google-analytics": "*",
+        "calebporzio/sushi": "^2.5",
         "filament/filament": "^4.0",
+        "google/analytics-data": "*",
         "google/apiclient": "^2.18",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
         "nunomaduro/essentials": "^1.0",
-        "google/analytics-data": "^0.23.0"
+        "spatie/laravel-analytics": "^5.6.0"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",
@@ -67,6 +70,10 @@
         "pre-autoload-dump": [
             "Google\\Task\\Composer::cleanup"
         ],
+        "reinstall-google-services": [
+            "rm -r vendor/google/apiclient-services",
+            "@composer update"
+        ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
@@ -91,6 +98,8 @@
         "google/apiclient-services": [
             "SearchConsole",
             "Analytics",
+            "AnalyticsData",
+            "AnalyticsReporting",
             "TagManager"
         ]
     },

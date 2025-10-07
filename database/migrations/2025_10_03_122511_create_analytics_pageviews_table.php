@@ -15,8 +15,8 @@ return new class extends Migration
     {
         Schema::create('analytics_pageviews', function (Blueprint $table): void {
             $table->id();
-            $table->date('date')->unique()->index();
-            $table->text('page_path')->unique();
+            $table->date('date')->index();
+            $table->text('page_path');
             $table->string('page_title');
             $table->integer('pageviews')->default(0);
             $table->integer('unique_pageviews')->default(0);
@@ -25,6 +25,8 @@ return new class extends Migration
             $table->decimal('bounce_rate', 5, 2)->default(0);
             $table->decimal('exit_rate', 5, 2)->default(0);
             $table->timestamps();
+
+            $table->unique(['date', 'page_path']);
         });
     }
 

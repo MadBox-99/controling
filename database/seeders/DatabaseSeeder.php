@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\AnalyticsSettings;
+use App\Models\Settings;
 use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -23,5 +25,15 @@ final class DatabaseSeeder extends Seeder
             'email' => 'admin@admin.com',
             'password' => Hash::make('password'),
         ]);
+
+        AnalyticsSettings::factory()->create();
+        Settings::create([
+            'google_service_account' => 'google-service-account.json',
+            'property_id' => '442849954',
+            'google_tag_id' => 'G-12345678',
+            'site_url' => 'https://cegem360.eu',
+            'last_sync_at' => now(),
+        ]);
+
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\KpiValues\Schemas;
 
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
@@ -14,9 +15,9 @@ final class KpiValueForm
     {
         return $schema
             ->components([
-                TextInput::make(\App\Models\Kpi::class)
-                    ->required()
-                    ->numeric(),
+                Select::make('kpi_id')
+                    ->relationship('kpi', 'name')
+                    ->required(),
                 DatePicker::make('period')
                     ->required(),
                 TextInput::make('planned_value')

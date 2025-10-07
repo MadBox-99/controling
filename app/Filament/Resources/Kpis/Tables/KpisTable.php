@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Kpis\Tables;
 
+use App\Filament\Imports\KpiImporter;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ImportAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -54,6 +56,11 @@ final class KpisTable
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
+            ])
+            ->headerActions([
+                ImportAction::make()
+                    ->importer(KpiImporter::class)
+                    ->label('Import KPIs'),
             ]);
     }
 }
