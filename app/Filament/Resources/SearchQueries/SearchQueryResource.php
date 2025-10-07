@@ -1,24 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\SearchQueries;
 
+use App\Enums\NavigationGroup;
 use App\Filament\Resources\SearchQueries\Pages\CreateSearchQuery;
 use App\Filament\Resources\SearchQueries\Pages\EditSearchQuery;
 use App\Filament\Resources\SearchQueries\Pages\ListSearchQueries;
 use App\Filament\Resources\SearchQueries\Schemas\SearchQueryForm;
 use App\Filament\Resources\SearchQueries\Tables\SearchQueriesTable;
 use App\Models\SearchQuery;
-use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
-class SearchQueryResource extends Resource
+final class SearchQueryResource extends Resource
 {
     protected static ?string $model = SearchQuery::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::SearchConsole;
 
     public static function form(Schema $schema): Schema
     {

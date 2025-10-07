@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\ReportExecutions\Pages;
 
 use App\Filament\Resources\ReportExecutions\ReportExecutionResource;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
-class EditReportExecution extends EditRecord
+final class EditReportExecution extends EditRecord
 {
     protected static string $resource = ReportExecutionResource::class;
 

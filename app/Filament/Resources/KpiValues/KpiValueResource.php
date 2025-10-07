@@ -1,24 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\KpiValues;
 
+use App\Enums\NavigationGroup;
 use App\Filament\Resources\KpiValues\Pages\CreateKpiValue;
 use App\Filament\Resources\KpiValues\Pages\EditKpiValue;
 use App\Filament\Resources\KpiValues\Pages\ListKpiValues;
 use App\Filament\Resources\KpiValues\Schemas\KpiValueForm;
 use App\Filament\Resources\KpiValues\Tables\KpiValuesTable;
 use App\Models\KpiValue;
-use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
-class KpiValueResource extends Resource
+final class KpiValueResource extends Resource
 {
     protected static ?string $model = KpiValue::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Kpis;
 
     public static function form(Schema $schema): Schema
     {

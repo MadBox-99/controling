@@ -1,24 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\SavedQueries;
 
+use App\Enums\NavigationGroup;
 use App\Filament\Resources\SavedQueries\Pages\CreateSavedQuery;
 use App\Filament\Resources\SavedQueries\Pages\EditSavedQuery;
 use App\Filament\Resources\SavedQueries\Pages\ListSavedQueries;
 use App\Filament\Resources\SavedQueries\Schemas\SavedQueryForm;
 use App\Filament\Resources\SavedQueries\Tables\SavedQueriesTable;
 use App\Models\SavedQuery;
-use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
-class SavedQueryResource extends Resource
+final class SavedQueryResource extends Resource
 {
     protected static ?string $model = SavedQuery::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Reports;
 
     public static function form(Schema $schema): Schema
     {

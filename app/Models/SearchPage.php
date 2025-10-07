@@ -1,12 +1,36 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class SearchPage extends Model
+final class SearchPage extends Model
 {
     /** @use HasFactory<\Database\Factories\SearchPageFactory> */
     use HasFactory;
+
+    protected $fillable = [
+        'date',
+        'page_url',
+        'country',
+        'device',
+        'impressions',
+        'clicks',
+        'ctr',
+        'position',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'date' => 'date',
+            'impressions' => 'integer',
+            'clicks' => 'integer',
+            'ctr' => 'decimal:2',
+            'position' => 'decimal:2',
+        ];
+    }
 }

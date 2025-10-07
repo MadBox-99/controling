@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\KpiValues\Pages;
 
 use App\Filament\Resources\KpiValues\KpiValueResource;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
-class EditKpiValue extends EditRecord
+final class EditKpiValue extends EditRecord
 {
     protected static string $resource = KpiValueResource::class;
 

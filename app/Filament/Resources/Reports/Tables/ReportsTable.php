@@ -1,19 +1,32 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Reports\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
-class ReportsTable
+final class ReportsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
             ->columns([
+                TextColumn::make('user.name')
+                    ->searchable(),
+                TextColumn::make('name')
+                    ->searchable(),
+                TextColumn::make('type')
+                    ->searchable(),
+                IconColumn::make('is_predefined')
+                    ->boolean(),
+                IconColumn::make('is_public')
+                    ->boolean(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

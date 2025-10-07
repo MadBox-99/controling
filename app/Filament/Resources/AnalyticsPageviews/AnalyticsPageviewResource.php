@@ -1,24 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\AnalyticsPageviews;
 
+use App\Enums\NavigationGroup;
 use App\Filament\Resources\AnalyticsPageviews\Pages\CreateAnalyticsPageview;
 use App\Filament\Resources\AnalyticsPageviews\Pages\EditAnalyticsPageview;
 use App\Filament\Resources\AnalyticsPageviews\Pages\ListAnalyticsPageviews;
 use App\Filament\Resources\AnalyticsPageviews\Schemas\AnalyticsPageviewForm;
 use App\Filament\Resources\AnalyticsPageviews\Tables\AnalyticsPageviewsTable;
 use App\Models\AnalyticsPageview;
-use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
-class AnalyticsPageviewResource extends Resource
+final class AnalyticsPageviewResource extends Resource
 {
     protected static ?string $model = AnalyticsPageview::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Analytics;
 
     public static function form(Schema $schema): Schema
     {

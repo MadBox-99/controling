@@ -1,24 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\ReportExecutions;
 
+use App\Enums\NavigationGroup;
 use App\Filament\Resources\ReportExecutions\Pages\CreateReportExecution;
 use App\Filament\Resources\ReportExecutions\Pages\EditReportExecution;
 use App\Filament\Resources\ReportExecutions\Pages\ListReportExecutions;
 use App\Filament\Resources\ReportExecutions\Schemas\ReportExecutionForm;
 use App\Filament\Resources\ReportExecutions\Tables\ReportExecutionsTable;
 use App\Models\ReportExecution;
-use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
-class ReportExecutionResource extends Resource
+final class ReportExecutionResource extends Resource
 {
     protected static ?string $model = ReportExecution::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Reports;
 
     public static function form(Schema $schema): Schema
     {

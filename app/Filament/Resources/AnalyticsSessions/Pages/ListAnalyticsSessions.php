@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\AnalyticsSessions\Pages;
 
 use App\Filament\Resources\AnalyticsSessions\AnalyticsSessionResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
-class ListAnalyticsSessions extends ListRecords
+final class ListAnalyticsSessions extends ListRecords
 {
     protected static string $resource = AnalyticsSessionResource::class;
 

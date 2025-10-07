@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\AnalyticsSessions\Pages;
 
 use App\Filament\Resources\AnalyticsSessions\AnalyticsSessionResource;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
-class EditAnalyticsSession extends EditRecord
+final class EditAnalyticsSession extends EditRecord
 {
     protected static string $resource = AnalyticsSessionResource::class;
 

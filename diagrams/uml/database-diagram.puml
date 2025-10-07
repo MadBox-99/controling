@@ -176,6 +176,10 @@ entity "settings" as settings {
   PRIMARY_KEY(id) : BIGINT UNSIGNED
   --
   google_service_account : JSON NULL
+  property_id : VARCHAR(100) UNIQUE
+  google_tag_id : VARCHAR(100)
+  site_url : VARCHAR(500) UNIQUE
+  last_sync_at : TIMESTAMP NULL
   created_at : TIMESTAMP
   updated_at : TIMESTAMP
 }
@@ -184,9 +188,14 @@ note right of settings
   <b>Filament Singular Resource</b>
   Singleton tábla (mindig 1 rekord)
 
+  <b>Egyszerűsített struktúra:</b>
+  - 1 GA4 property (property_id, google_tag_id)
+  - 1 Search Console site (site_url)
+  - 1 közös Service Account mindkettőhöz
+
   <b>Google Service Account (Közös):</b>
-  ✅ GA4 Analytics API támogatott
-  ✅ Search Console API támogatott
+  ✅ GA4 Analytics API
+  ✅ Search Console API
 
   <b>JSON struktúra:</b>
   {
@@ -197,37 +206,15 @@ note right of settings
     "client_email": "...",
     "client_id": "..."
   }
-
-  <b>Setup lépések:</b>
-  1. Service Account létrehozása GCP-ben
-  2. JSON key letöltése
-  3. SA hozzáadása GA4 property-hez
-  4. SA hozzáadása Search Console-hoz
 end note
 
 ' ============================================
 ' GOOGLE ANALYTICS TABLES
 ' ============================================
 
-entity "analytics_properties" as analytics_properties {
-  PRIMARY_KEY(id) : BIGINT UNSIGNED
-  --
-  name : VARCHAR(255)
-  property_id : VARCHAR(100) UNIQUE
-  measurement_id : VARCHAR(100)
-  is_active : BOOLEAN DEFAULT true
-  last_sync_at : TIMESTAMP NULL
-  created_at : TIMESTAMP
-  updated_at : TIMESTAMP
-  --
-  INDEX(is_active)
-  INDEX(last_sync_at)
-}
-
 entity "analytics_sessions" as analytics_sessions {
   PRIMARY_KEY(id) : BIGINT UNSIGNED
   --
-  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
   date : DATE
   sessions : INT DEFAULT 0
   users : INT DEFAULT 0
@@ -241,18 +228,16 @@ entity "analytics_sessions" as analytics_sessions {
   created_at : TIMESTAMP
   updated_at : TIMESTAMP
   --
-  INDEX(property_id)
   INDEX(date)
   INDEX(source, medium)
-  UNIQUE KEY(property_id, date, source, medium, campaign)
+  UNIQUE KEY(date, source, medium, campaign)
 }
 
 entity "analytics_pageviews" as analytics_pageviews {
   PRIMARY_KEY(id) : BIGINT UNSIGNED
   --
-  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
-  date : DATE
-  page_path : VARCHAR(1000)
+  date : DATE UNIQUE
+  page_path : TEXT UNIQUE
   page_title : VARCHAR(255)
   pageviews : INT DEFAULT 0
   unique_pageviews : INT DEFAULT 0
@@ -263,16 +248,12 @@ entity "analytics_pageviews" as analytics_pageviews {
   created_at : TIMESTAMP
   updated_at : TIMESTAMP
   --
-  INDEX(property_id)
   INDEX(date)
-  INDEX(page_path(255))
-  UNIQUE KEY(property_id, date, page_path(500))
 }
 
 entity "analytics_events" as analytics_events {
   PRIMARY_KEY(id) : BIGINT UNSIGNED
   --
-  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
   date : DATE
   event_name : VARCHAR(255)
   event_category : VARCHAR(255)
@@ -283,16 +264,14 @@ entity "analytics_events" as analytics_events {
   created_at : TIMESTAMP
   updated_at : TIMESTAMP
   --
-  INDEX(property_id)
   INDEX(date)
   INDEX(event_name)
-  UNIQUE KEY(property_id, date, event_name, event_category, event_action, event_label)
+  UNIQUE KEY(date, event_name, event_category, event_action, event_label)
 }
 
 entity "analytics_conversions" as analytics_conversions {
   PRIMARY_KEY(id) : BIGINT UNSIGNED
   --
-  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
   date : DATE
   goal_name : VARCHAR(255)
   goal_completions : INT DEFAULT 0
@@ -301,39 +280,21 @@ entity "analytics_conversions" as analytics_conversions {
   created_at : TIMESTAMP
   updated_at : TIMESTAMP
   --
-  INDEX(property_id)
   INDEX(date)
-  UNIQUE KEY(property_id, date, goal_name)
+  UNIQUE KEY(date, goal_name)
 }
 
 ' ============================================
 ' GOOGLE SEARCH CONSOLE TABLES
 ' ============================================
 
-entity "search_console_properties" as search_console_properties {
-  PRIMARY_KEY(id) : BIGINT UNSIGNED
-  --
-  name : VARCHAR(255)
-  site_url : VARCHAR(500) UNIQUE
-  verification_method : VARCHAR(100)
-  is_verified : BOOLEAN DEFAULT false
-  is_active : BOOLEAN DEFAULT true
-  last_sync_at : TIMESTAMP NULL
-  created_at : TIMESTAMP
-  updated_at : TIMESTAMP
-  --
-  INDEX(is_active)
-  INDEX(last_sync_at)
-}
-
 entity "search_queries" as search_queries {
   PRIMARY_KEY(id) : BIGINT UNSIGNED
   --
-  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
   date : DATE
-  query : VARCHAR(500)
+  query : TEXT
   country : VARCHAR(2) NULL
-  device : ENUM('desktop', 'mobile', 'tablet')
+  device : VARCHAR(20)
   impressions : INT DEFAULT 0
   clicks : INT DEFAULT 0
   ctr : DECIMAL(5,2) DEFAULT 0
@@ -341,21 +302,18 @@ entity "search_queries" as search_queries {
   created_at : TIMESTAMP
   updated_at : TIMESTAMP
   --
-  INDEX(property_id)
   INDEX(date)
-  INDEX(query(255))
   INDEX(device)
-  UNIQUE KEY(property_id, date, query(255), country, device)
+  UNIQUE KEY(date, query, country, device)
 }
 
 entity "search_pages" as search_pages {
   PRIMARY_KEY(id) : BIGINT UNSIGNED
   --
-  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
   date : DATE
-  page_url : VARCHAR(1000)
+  page_url : TEXT
   country : VARCHAR(2) NULL
-  device : ENUM('desktop', 'mobile', 'tablet')
+  device : VARCHAR(20)
   impressions : INT DEFAULT 0
   clicks : INT DEFAULT 0
   ctr : DECIMAL(5,2) DEFAULT 0
@@ -363,27 +321,21 @@ entity "search_pages" as search_pages {
   created_at : TIMESTAMP
   updated_at : TIMESTAMP
   --
-  INDEX(property_id)
   INDEX(date)
-  INDEX(page_url(255))
   INDEX(device)
-  UNIQUE KEY(property_id, date, page_url(500), country, device)
+  UNIQUE KEY(date, page_url, country, device)
 }
 
 entity "search_sitemaps" as search_sitemaps {
   PRIMARY_KEY(id) : BIGINT UNSIGNED
   --
-  FOREIGN_KEY(property_id) : BIGINT UNSIGNED
-  sitemap_url : VARCHAR(500)
+  sitemap_url : VARCHAR(500) UNIQUE
   last_submitted : TIMESTAMP NULL
   is_pending : BOOLEAN DEFAULT false
   warnings : INT DEFAULT 0
   errors : INT DEFAULT 0
   created_at : TIMESTAMP
   updated_at : TIMESTAMP
-  --
-  INDEX(property_id)
-  UNIQUE KEY(property_id, sitemap_url)
 }
 
 ' ============================================
@@ -396,10 +348,10 @@ entity "kpis" as kpis {
   code : VARCHAR(50) UNIQUE
   name : VARCHAR(255)
   description : TEXT NULL
-  data_source : ENUM('analytics', 'search_console', 'manual', 'calculated')
+  data_source : VARCHAR(50)
   formula : TEXT NULL
-  category : ENUM('traffic', 'engagement', 'conversion', 'seo', 'custom')
-  format : ENUM('percentage', 'number', 'ratio', 'duration')
+  category : VARCHAR(50)
+  format : VARCHAR(50)
   target_value : DECIMAL(15,2) NULL
   is_active : BOOLEAN DEFAULT true
   created_at : TIMESTAMP
@@ -413,7 +365,7 @@ entity "kpis" as kpis {
 entity "kpi_values" as kpi_values {
   PRIMARY_KEY(id) : BIGINT UNSIGNED
   --
-  FOREIGN_KEY(kpi_id) : BIGINT UNSIGNED
+  FOREIGN_KEY(kpi_id) : BIGINT UNSIGNED UNIQUE
   period : DATE
   planned_value : DECIMAL(15,2) NULL
   actual_value : DECIMAL(15,2)
@@ -424,7 +376,6 @@ entity "kpi_values" as kpi_values {
   --
   INDEX(kpi_id)
   INDEX(period)
-  UNIQUE KEY(kpi_id, period)
 }
 
 ' ============================================
@@ -437,7 +388,7 @@ entity "reports" as reports {
   FOREIGN_KEY(user_id) : BIGINT UNSIGNED NULL
   name : VARCHAR(255)
   description : TEXT NULL
-  type : ENUM('analytics', 'search_console', 'combined', 'custom')
+  type : VARCHAR(50)
   is_predefined : BOOLEAN DEFAULT false
   is_public : BOOLEAN DEFAULT false
   configuration : JSON
@@ -455,7 +406,7 @@ entity "saved_queries" as saved_queries {
   FOREIGN_KEY(user_id) : BIGINT UNSIGNED
   name : VARCHAR(255)
   description : TEXT NULL
-  query_type : ENUM('analytics', 'search_console', 'combined', 'custom')
+  query_type : VARCHAR(50)
   parameters : JSON NULL
   query_definition : JSON
   is_parameterized : BOOLEAN DEFAULT false
@@ -479,6 +430,8 @@ entity "report_executions" as report_executions {
   INDEX(report_id)
   INDEX(user_id)
   INDEX(executed_at)
+  FOREIGN KEY CONSTRAINT(report_id) CASCADE ON DELETE
+  FOREIGN KEY CONSTRAINT(user_id) CASCADE ON DELETE
 }
 
 ' ============================================
@@ -494,16 +447,8 @@ users ||--o{ notifications
 ' Filament Import/Export
 imports ||--o{ failed_import_rows
 
-' Google Analytics
-analytics_properties ||--o{ analytics_sessions
-analytics_properties ||--o{ analytics_pageviews
-analytics_properties ||--o{ analytics_events
-analytics_properties ||--o{ analytics_conversions
-
-' Google Search Console
-search_console_properties ||--o{ search_queries
-search_console_properties ||--o{ search_pages
-search_console_properties ||--o{ search_sitemaps
+' Google Analytics és Search Console
+' Nincs külön property tábla, a Settings (singleton) tárolja a konfigurációt
 
 ' KPI
 kpis ||--o{ kpi_values
@@ -543,20 +488,21 @@ note top of imports
   Sikertelen sorok: failed_import_rows
 end note
 
-note top of analytics_properties
+note top of analytics_sessions
   <b>Google Analytics 4</b>
-  - Sessions & Users
-  - Pageviews & Events
-  - Conversions & Goals
-  - Source/Medium tracking
+  Nincs külön analytics_properties tábla
+  Settings (singleton) tárolja:
+  - property_id
+  - google_tag_id
+  - last_sync_at
 end note
 
-note top of search_console_properties
+note top of search_queries
   <b>Google Search Console</b>
-  - Search queries
-  - Page performance
-  - CTR & Position
-  - Sitemap management
+  Nincs külön search_console_properties tábla
+  Settings (singleton) tárolja:
+  - site_url
+  - last_sync_at
 end note
 
 note top of kpis

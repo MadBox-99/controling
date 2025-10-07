@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,8 +13,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('settings', function (Blueprint $table) {
+        Schema::create('settings', function (Blueprint $table): void {
             $table->id();
+            $table->json('google_service_account')->nullable();
+            $table->string('property_id', 100)->unique();
+            $table->string('google_tag_id', 100);
+            $table->string('site_url', 500)->unique();
+            $table->timestamp('last_sync_at')->nullable();
             $table->timestamps();
         });
     }

@@ -147,6 +147,10 @@ package "API Configuration (Filament Singular Resource)" {
     class Settings {
         PRIMARY_KEY id: int
         google_service_account: json (nullable)
+        property_id: string (unique)
+        google_tag_id: string
+        site_url: string (unique)
+        last_sync_at: timestamp (nullable)
         created_at: timestamp
         updated_at: timestamp
         --
@@ -155,12 +159,18 @@ package "API Configuration (Filament Singular Resource)" {
         +testGAConnection(): bool
         +testGSCConnection(): bool
         +getGoogleClient(): Google\Client
+        +sync(): void
     }
 }
 
 note right of Settings
   <b>Filament Singular Resource</b>
   Mindig csak 1 rekord (Singleton)
+
+  <b>Egyszerűsített struktúra:</b>
+  - 1 GA4 property (property_id, google_tag_id)
+  - 1 Search Console property (site_url)
+  - 1 közös Service Account mindkettőhöz
 
   <b>Google Service Account (Közös):</b>
   ✅ Mindkét API támogatja
@@ -176,33 +186,11 @@ note right of Settings
     "client_email": "sa@project.iam.gserviceaccount.com",
     "client_id": "..."
   }
-
-  <b>Használat:</b>
-  putenv('GOOGLE_APPLICATION_CREDENTIALS=...');
-  $client->useApplicationDefaultCredentials();
 end note
 
 package "Google Analytics Integration" {
-    class AnalyticsProperty {
-        PRIMARY_KEY id: int
-        name: string
-        property_id: string (GA4 Property ID)
-        measurement_id: string
-        is_active: boolean
-        last_sync_at: timestamp
-        created_at: timestamp
-        updated_at: timestamp
-        --
-        +sessions(): HasMany
-        +pageviews(): HasMany
-        +events(): HasMany
-        +conversions(): HasMany
-        +sync(): void
-    }
-
     class AnalyticsSession {
         PRIMARY_KEY id: int
-        FOREIGN_KEY property_id: int
         date: date
         sessions: int
         users: int
@@ -210,20 +198,21 @@ package "Google Analytics Integration" {
         bounce_rate: decimal(5,2)
         avg_session_duration: int
         pages_per_session: decimal(5,2)
-        source: string
-        medium: string
+        source: string (nullable)
+        medium: string (nullable)
         campaign: string (nullable)
         created_at: timestamp
         updated_at: timestamp
         --
-        +property(): BelongsTo
+        UNIQUE KEY(date, source, medium, campaign)
+        INDEX(date)
+        INDEX(source, medium)
     }
 
     class AnalyticsPageview {
         PRIMARY_KEY id: int
-        FOREIGN_KEY property_id: int
-        date: date
-        page_path: string
+        date: date (unique)
+        page_path: text (unique)
         page_title: string
         pageviews: int
         unique_pageviews: int
@@ -234,12 +223,11 @@ package "Google Analytics Integration" {
         created_at: timestamp
         updated_at: timestamp
         --
-        +property(): BelongsTo
+        INDEX(date)
     }
 
     class AnalyticsEvent {
         PRIMARY_KEY id: int
-        FOREIGN_KEY property_id: int
         date: date
         event_name: string
         event_category: string
@@ -250,12 +238,13 @@ package "Google Analytics Integration" {
         created_at: timestamp
         updated_at: timestamp
         --
-        +property(): BelongsTo
+        UNIQUE KEY(date, event_name, event_category, event_action, event_label)
+        INDEX(date)
+        INDEX(event_name)
     }
 
     class AnalyticsConversion {
         PRIMARY_KEY id: int
-        FOREIGN_KEY property_id: int
         date: date
         goal_name: string
         goal_completions: int
@@ -264,35 +253,18 @@ package "Google Analytics Integration" {
         created_at: timestamp
         updated_at: timestamp
         --
-        +property(): BelongsTo
+        UNIQUE KEY(date, goal_name)
+        INDEX(date)
     }
 }
 
 package "Google Search Console Integration" {
-    class SearchConsoleProperty {
-        PRIMARY_KEY id: int
-        name: string
-        site_url: string
-        verification_method: string
-        is_verified: boolean
-        is_active: boolean
-        last_sync_at: timestamp
-        created_at: timestamp
-        updated_at: timestamp
-        --
-        +queries(): HasMany
-        +pages(): HasMany
-        +sitemaps(): HasMany
-        +sync(): void
-    }
-
     class SearchQuery {
         PRIMARY_KEY id: int
-        FOREIGN_KEY property_id: int
         date: date
-        query: string
-        country: string (nullable)
-        device: enum(desktop, mobile, tablet)
+        query: text
+        country: string(2) (nullable)
+        device: string(20)
         impressions: int
         clicks: int
         ctr: decimal(5,2)
@@ -300,16 +272,17 @@ package "Google Search Console Integration" {
         created_at: timestamp
         updated_at: timestamp
         --
-        +property(): BelongsTo
+        UNIQUE KEY(date, query, country, device)
+        INDEX(date)
+        INDEX(device)
     }
 
     class SearchPage {
         PRIMARY_KEY id: int
-        FOREIGN_KEY property_id: int
         date: date
-        page_url: string
-        country: string (nullable)
-        device: enum(desktop, mobile, tablet)
+        page_url: text
+        country: string(2) (nullable)
+        device: string(20)
         impressions: int
         clicks: int
         ctr: decimal(5,2)
@@ -317,21 +290,20 @@ package "Google Search Console Integration" {
         created_at: timestamp
         updated_at: timestamp
         --
-        +property(): BelongsTo
+        UNIQUE KEY(date, page_url, country, device)
+        INDEX(date)
+        INDEX(device)
     }
 
     class SearchSitemap {
         PRIMARY_KEY id: int
-        FOREIGN_KEY property_id: int
-        sitemap_url: string
-        last_submitted: timestamp
+        sitemap_url: string(500) (unique)
+        last_submitted: timestamp (nullable)
         is_pending: boolean
         warnings: int
         errors: int
         created_at: timestamp
         updated_at: timestamp
-        --
-        +property(): BelongsTo
     }
 }
 
@@ -356,7 +328,7 @@ package "KPI & Metrics" {
 
     class KPIValue {
         PRIMARY_KEY id: int
-        FOREIGN_KEY kpi_id: int
+        FOREIGN_KEY kpi_id: int (unique)
         period: date
         planned_value: decimal(15,2) (nullable)
         actual_value: decimal(15,2)
@@ -365,6 +337,8 @@ package "KPI & Metrics" {
         created_at: timestamp
         updated_at: timestamp
         --
+        INDEX(kpi_id)
+        INDEX(period)
         +kpi(): BelongsTo
         +calculateVariance(): void
     }
@@ -375,14 +349,17 @@ package "Reports & Dashboards" {
         PRIMARY_KEY id: int
         FOREIGN_KEY user_id: int (nullable)
         name: string
-        description: text
-        type: enum(analytics, search_console, combined, custom)
+        description: text (nullable)
+        type: string(50)
         is_predefined: boolean
         is_public: boolean
         configuration: json
         created_at: timestamp
         updated_at: timestamp
         --
+        INDEX(user_id)
+        INDEX(type)
+        INDEX(is_predefined)
         +user(): BelongsTo
         +executions(): HasMany
         +execute(params): ReportResult
@@ -393,14 +370,16 @@ package "Reports & Dashboards" {
         PRIMARY_KEY id: int
         FOREIGN_KEY user_id: int
         name: string
-        description: text
-        query_type: enum(analytics, search_console, combined, custom)
-        parameters: json
+        description: text (nullable)
+        query_type: string(50)
+        parameters: json (nullable)
         query_definition: json
         is_parameterized: boolean
         created_at: timestamp
         updated_at: timestamp
         --
+        INDEX(user_id)
+        INDEX(query_type)
         +user(): BelongsTo
         +execute(params): Collection
     }
@@ -409,11 +388,14 @@ package "Reports & Dashboards" {
         PRIMARY_KEY id: int
         FOREIGN_KEY report_id: int
         FOREIGN_KEY user_id: int
-        parameters: json
+        parameters: json (nullable)
         executed_at: timestamp
         execution_time_ms: int
         row_count: int
         --
+        INDEX(report_id)
+        INDEX(user_id)
+        INDEX(executed_at)
         +report(): BelongsTo
         +user(): BelongsTo
     }
@@ -428,20 +410,9 @@ User "1" -- "*" Notification
 ' Filament Import/Export Relationships
 Import "1" -- "*" FailedImportRow
 
-' API Configuration (used by sync services)
-Settings "1" ..> AnalyticsProperty : "Service Account\nfor API auth"
-Settings "1" ..> SearchConsoleProperty : "Service Account\nfor API auth"
-
-' Google Analytics Relationships
-AnalyticsProperty "1" -- "*" AnalyticsSession
-AnalyticsProperty "1" -- "*" AnalyticsPageview
-AnalyticsProperty "1" -- "*" AnalyticsEvent
-AnalyticsProperty "1" -- "*" AnalyticsConversion
-
-' Google Search Console Relationships
-SearchConsoleProperty "1" -- "*" SearchQuery
-SearchConsoleProperty "1" -- "*" SearchPage
-SearchConsoleProperty "1" -- "*" SearchSitemap
+' Settings egyetlen property-t és site-ot kezel (singleton)
+' Nincs külön AnalyticsProperty és SearchConsoleProperty tábla
+' Az adatok közvetlenül a Settings-ből származnak
 
 ' KPI Relationships
 KPI "1" -- "*" KPIValue
@@ -463,16 +434,18 @@ note right of Import
   Sikertelen sorok: FailedImportRow
 end note
 
-note right of AnalyticsProperty
-  Google Analytics 4 integráció
-  Automatikus adatgyűjtés
-  Napi szinkronizálás
+note right of AnalyticsSession
+  Google Analytics 4 adatok
+  Nincs külön property tábla
+  Settings tárolja a property_id-t
+  Automatikus napi szinkronizálás
 end note
 
-note right of SearchConsoleProperty
-  Google Search Console API
-  SEO metrikák
-  Keresési teljesítmény
+note right of SearchQuery
+  Google Search Console adatok
+  Nincs külön property tábla
+  Settings tárolja a site_url-t
+  SEO metrikák & keresési teljesítmény
 end note
 
 note right of KPI

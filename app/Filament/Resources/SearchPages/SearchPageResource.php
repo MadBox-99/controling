@@ -1,24 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\SearchPages;
 
+use App\Enums\NavigationGroup;
 use App\Filament\Resources\SearchPages\Pages\CreateSearchPage;
 use App\Filament\Resources\SearchPages\Pages\EditSearchPage;
 use App\Filament\Resources\SearchPages\Pages\ListSearchPages;
 use App\Filament\Resources\SearchPages\Schemas\SearchPageForm;
 use App\Filament\Resources\SearchPages\Tables\SearchPagesTable;
 use App\Models\SearchPage;
-use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
-class SearchPageResource extends Resource
+final class SearchPageResource extends Resource
 {
     protected static ?string $model = SearchPage::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::SearchConsole;
 
     public static function form(Schema $schema): Schema
     {

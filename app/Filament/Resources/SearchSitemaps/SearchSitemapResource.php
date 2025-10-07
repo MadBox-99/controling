@@ -1,24 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\SearchSitemaps;
 
+use App\Enums\NavigationGroup;
 use App\Filament\Resources\SearchSitemaps\Pages\CreateSearchSitemap;
 use App\Filament\Resources\SearchSitemaps\Pages\EditSearchSitemap;
 use App\Filament\Resources\SearchSitemaps\Pages\ListSearchSitemaps;
 use App\Filament\Resources\SearchSitemaps\Schemas\SearchSitemapForm;
 use App\Filament\Resources\SearchSitemaps\Tables\SearchSitemapsTable;
 use App\Models\SearchSitemap;
-use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
-class SearchSitemapResource extends Resource
+final class SearchSitemapResource extends Resource
 {
     protected static ?string $model = SearchSitemap::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::SearchConsole;
 
     public static function form(Schema $schema): Schema
     {

@@ -1,24 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\AnalyticsConversions;
 
+use App\Enums\NavigationGroup;
 use App\Filament\Resources\AnalyticsConversions\Pages\CreateAnalyticsConversion;
 use App\Filament\Resources\AnalyticsConversions\Pages\EditAnalyticsConversion;
 use App\Filament\Resources\AnalyticsConversions\Pages\ListAnalyticsConversions;
 use App\Filament\Resources\AnalyticsConversions\Schemas\AnalyticsConversionForm;
 use App\Filament\Resources\AnalyticsConversions\Tables\AnalyticsConversionsTable;
 use App\Models\AnalyticsConversion;
-use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
-class AnalyticsConversionResource extends Resource
+final class AnalyticsConversionResource extends Resource
 {
     protected static ?string $model = AnalyticsConversion::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Analytics;
 
     public static function form(Schema $schema): Schema
     {
