@@ -26,7 +26,6 @@ return new class extends Migration
             $table->decimal('exit_rate', 5, 2)->default(0);
             $table->timestamps();
 
-            $table->unique(['date', 'page_path']);
         });
     }
 
