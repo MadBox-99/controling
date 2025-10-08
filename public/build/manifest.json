@@ -1,0 +1,24 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/app-CNE09s1L.css",
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "names": [
+      "app.css"
+    ]
+  },
+  "resources/images/logo.png": {
+    "file": "assets/logo-BdDtjedL.png",
+    "src": "resources/images/logo.png"
+  },
+  "resources/images/logo.svg": {
+    "file": "assets/logo-DanLznZQ.svg",
+    "src": "resources/images/logo.svg"
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-Bj43h_rG.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  }
+}
