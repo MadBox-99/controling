@@ -31,6 +31,7 @@ final class AnalyticsSettings extends Model
         return [
             'dimensions' => 'array',
             'metrics' => 'array',
+            'order_by' => 'array',
             'order_by_type' => OrderByType::class,
         ];
     }
