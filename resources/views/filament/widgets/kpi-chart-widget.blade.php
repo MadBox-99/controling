@@ -21,7 +21,7 @@
                 $data = $this->getKpiData();
             @endphp
 
-            @if($data && $data['kpi']->target_value)
+            @if($data && $data['kpi']->target_value && $data['latestValue'])
                 <!-- Circular Progress Chart -->
                 <div class="flex items-center justify-center py-4">
                     <div class="relative" style="width: 180px; height: 180px;">
@@ -77,7 +77,7 @@
                         {{ $data['latestValue']->period->format('M d, Y') }}
                     </div>
                 </div>
-            @elseif($data && !$data['kpi']->target_value)
+            @elseif($data && !$data['kpi']->target_value && $data['latestValue'])
                 <!-- KPI without target - show only actual value -->
                 <div class="space-y-3">
                     <div class="rounded-lg bg-blue-100 p-4 dark:bg-blue-900/30">
