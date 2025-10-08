@@ -24,7 +24,6 @@ return new class extends Migration
             $table->decimal('variance_percentage', 5, 2)->nullable();
             $table->timestamps();
 
-            $table->unique(['kpi_id', 'period']);
         });
     }
 

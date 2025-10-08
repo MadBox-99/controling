@@ -27,7 +27,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index('date');
-            $table->unique(['date', 'page_url', 'country', 'device']);
+
         });
     }
 
