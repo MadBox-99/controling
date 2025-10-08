@@ -15,8 +15,8 @@ return new class extends Migration
     {
         Schema::create('analytics_events', function (Blueprint $table): void {
             $table->id();
-            $table->date('date');
-            $table->string('event_name');
+            $table->date('date')->index();
+            $table->string('event_name')->index();
             $table->string('event_category');
             $table->string('event_action');
             $table->string('event_label')->nullable();
@@ -24,9 +24,6 @@ return new class extends Migration
             $table->decimal('event_value', 15, 2)->nullable();
             $table->timestamps();
 
-            $table->index('date');
-            $table->index('event_name');
-            $table->unique(['date', 'event_name', 'event_category', 'event_action', 'event_label'], 'analytics_events_unique');
         });
     }
 
