@@ -143,7 +143,7 @@ final class SyncSearchConsoleKpis implements ShouldQueue
         }
     }
 
-    protected function upsertKpiValue(Kpi $kpi, string $period, float|int $actualValue): void
+    protected function upsertKpiValue(Kpi $kpi, string $period, float|int|string $actualValue): void
     {
         $kpiValue = KpiValue::query()
             ->where('kpi_id', $kpi->id)
