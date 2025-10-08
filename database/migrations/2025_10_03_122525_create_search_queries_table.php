@@ -16,7 +16,7 @@ return new class extends Migration
         Schema::create('search_queries', function (Blueprint $table): void {
             $table->id();
 
-            $table->date('date');
+            $table->date('date')->index();
             $table->text('query');
             $table->string('country', 2)->nullable();
             $table->string('device', 20)->index();
@@ -26,8 +26,6 @@ return new class extends Migration
             $table->decimal('position', 5, 2)->default(0);
             $table->timestamps();
 
-            $table->index('date');
-            $table->unique(['date', 'query', 'country', 'device']);
         });
     }
 
