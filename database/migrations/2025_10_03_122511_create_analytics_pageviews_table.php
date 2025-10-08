@@ -16,8 +16,8 @@ return new class extends Migration
         Schema::create('analytics_pageviews', function (Blueprint $table): void {
             $table->id();
             $table->date('date')->index();
-            $table->text('page_path');
-            $table->string('page_title');
+            $table->text('page_path')->nullable();
+            $table->string('page_title')->nullable();
             $table->integer('pageviews')->default(0);
             $table->integer('unique_pageviews')->default(0);
             $table->integer('avg_time_on_page')->default(0);
