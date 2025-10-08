@@ -26,7 +26,7 @@ final class DatabaseSeeder extends Seeder
             'password' => Hash::make('password'),
         ]);
 
-        AnalyticsSettings::factory()->create();
+        // AnalyticsSettings::factory()->create();
         Settings::create([
             'google_service_account' => 'google-service-account.json',
             'property_id' => '442849954',
