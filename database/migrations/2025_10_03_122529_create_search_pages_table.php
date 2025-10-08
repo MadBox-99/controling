@@ -18,7 +18,7 @@ return new class extends Migration
 
             $table->date('date');
             $table->text('page_url');
-            $table->string('country', 2)->nullable();
+            $table->string('country', 20)->nullable();
             $table->string('device', 20)->index();
             $table->integer('impressions')->default(0);
             $table->integer('clicks')->default(0);
