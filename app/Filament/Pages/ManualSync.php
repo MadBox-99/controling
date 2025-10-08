@@ -4,26 +4,12 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
-use App\Enums\GoogleAnalitycs\OrderByType;
 use App\Enums\NavigationGroup;
 use App\Jobs\AnaliticsImport;
-use App\Models\AnalyticsSettings;
-use App\Models\Settings;
+use App\Jobs\SearchConsoleImport;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Google\Client;
-use Google\Service\AnalyticsData;
-use Google\Service\AnalyticsData\DateRange;
-use Google\Service\AnalyticsData\Dimension;
-use Google\Service\AnalyticsData\DimensionOrderBy;
-use Google\Service\AnalyticsData\Metric;
-use Google\Service\AnalyticsData\MetricOrderBy;
-use Google\Service\AnalyticsData\OrderBy;
-use Google\Service\AnalyticsData\RunReportRequest;
-use Google\Service\AnalyticsData\RunReportResponse;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 use UnitEnum;
 
 final class ManualSync extends Page
@@ -36,137 +22,41 @@ final class ManualSync extends Page
 
     protected static ?int $navigationSort = 98;
 
-    public function syncAction(): Action
-    {
-        return Action::make('sync')
-            ->label('Start Sync')
-            ->button()
-            ->color('primary')
-            ->action('performSync');
-    }
-
-    public function performSync(): void
+    public function performAnalyticsSync(): void
     {
         AnaliticsImport::dispatch();
 
-        $settings = Settings::query()->first();
-
-        if (! $settings || ! $settings->google_service_account) {
-            Notification::make()
-                ->title('Google Service Account credentials not configured.')
-                ->body('Please configure the credentials in Settings first.')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        if (! $settings->property_id) {
-            Notification::make()
-                ->title('GA4 Property ID not configured.')
-                ->body('Please configure the Property ID in Settings first.')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        $analyticsSettings = AnalyticsSettings::query()->first();
-
-        if (! $analyticsSettings) {
-            Notification::make()
-                ->title('Analytics Settings not configured.')
-                ->body('Please configure dimensions, metrics, and order by in Analytics Settings first.')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        $client = new Client();
-        $client->useApplicationDefaultCredentials();
-        $client->setScopes(['https://www.googleapis.com/auth/analytics.readonly']);
-        $client->setAuthConfig(Storage::json($settings->google_service_account));
-        $service = new AnalyticsData($client);
-
-        $dateRange = new DateRange();
-        $dateRange->setStartDate('2023-01-01');
-        $dateRange->setEndDate('today');
-
-        // Build dimensions from settings
-        $dimensions = collect($analyticsSettings->dimensions ?? [])
-            ->map(function (array $dimensionConfig) {
-                $dimension = new Dimension();
-                $dimension->setName($dimensionConfig['name']);
-
-                return $dimension;
-            })
-            ->all();
-
-        // Build metrics from settings
-        $metrics = collect($analyticsSettings->metrics ?? [])
-            ->map(function (array $metricConfig) {
-                $metric = new Metric();
-                $metric->setName($metricConfig['name']);
-
-                return $metric;
-            })
-            ->all();
-        $orderBy = [];
-        // Build order by from settings
-        if ($analyticsSettings->order_by_type === OrderByType::METRIC) {
-            $orderBy = [
-                new OrderBy([
-                    'metric' => new MetricOrderBy(['metric_name' => $analyticsSettings->order_by]),
-                    'desc' => $analyticsSettings->order_by_direction === 'desc',
-                ]),
-            ];
-        }
-        if ($analyticsSettings->order_by_type === OrderByType::DIMENSION) {
-            $orderBy = [
-                new OrderBy([
-                    'dimension' => new DimensionOrderBy(['dimension_name' => $analyticsSettings->order_by]),
-                    'desc' => $analyticsSettings->order_by_direction === 'desc',
-                ]),
-            ];
-        }
-
-        $request = new RunReportRequest();
-        $request->setDateRanges([$dateRange]);
-        $request->setOrderBys([$orderBy]);
-        $request->setDimensions($dimensions);
-        $request->setMetrics($metrics);
-        // @var RunReportResponse $response
-        $response = $service->properties
-            ->runReport(property: 'properties/'.$settings->property_id, postBody: $request);
-
-        foreach ($response->getRows() as $row) {
-            $rowData = [];
-
-            // Add dimensions
-            foreach ($row->getDimensionValues() as $index => $dimensionValue) {
-                $dimensionName = $response->getDimensionHeaders()[$index]->getName();
-                $rowData[$dimensionName] = $dimensionValue->getValue();
-            }
-
-            // Add metrics
-            foreach ($row->getMetricValues() as $index => $metricValue) {
-                $metricName = $response->getMetricHeaders()[$index]->getName();
-                $value = $metricValue->getValue();
-
-                $rowData[$metricName] = $value;
-            }
-
-            $processedData[] = $rowData;
-        }
-
-        dump(new Collection($processedData));
-
         Notification::make()
-            ->title('Manual sync started successfully.')
-            ->body('The synchronization process has been initiated.')
+            ->title('Analytics sync started successfully.')
+            ->body('The Analytics synchronization process has been initiated in the background.')
             ->success()
             ->send();
+    }
 
+    public function performSearchConsoleSync(): void
+    {
+        SearchConsoleImport::dispatch();
+
+        Notification::make()
+            ->title('Search Console sync started successfully.')
+            ->body('The Search Console synchronization process has been initiated in the background.')
+            ->success()
+            ->send();
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('syncAnalytics')
+                ->label('Sync Analytics')
+                ->icon('heroicon-o-chart-bar')
+                ->color('primary')
+                ->action('performAnalyticsSync'),
+            Action::make('syncSearchConsole')
+                ->label('Sync Search Console')
+                ->icon('heroicon-o-magnifying-glass')
+                ->color('success')
+                ->action('performSearchConsoleSync'),
+        ];
     }
 }

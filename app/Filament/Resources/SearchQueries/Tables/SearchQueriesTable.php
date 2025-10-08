@@ -19,6 +19,11 @@ final class SearchQueriesTable
                 TextColumn::make('date')
                     ->date()
                     ->sortable(),
+                TextColumn::make('query')
+                    ->searchable()
+                    ->weight('bold')
+                    ->wrap()
+                    ->limit(50),
                 TextColumn::make('country')
                     ->searchable(),
                 TextColumn::make('device')

@@ -295,16 +295,7 @@ package "Google Search Console Integration" {
         INDEX(device)
     }
 
-    class SearchSitemap {
-        PRIMARY_KEY id: int
-        sitemap_url: string(500) (unique)
-        last_submitted: timestamp (nullable)
-        is_pending: boolean
-        warnings: int
-        errors: int
-        created_at: timestamp
-        updated_at: timestamp
-    }
+    
 }
 
 package "KPI & Metrics" {

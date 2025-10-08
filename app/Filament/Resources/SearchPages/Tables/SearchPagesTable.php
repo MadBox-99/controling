@@ -19,8 +19,11 @@ final class SearchPagesTable
                 TextColumn::make('date')
                     ->date()
                     ->sortable(),
-                TextColumn::make('country')
-                    ->searchable(),
+                TextColumn::make('page_url')
+                    ->searchable()
+                    ->weight('bold')
+                    ->wrap()
+                    ->limit(50),
                 TextColumn::make('device')
                     ->searchable(),
                 TextColumn::make('impressions')
