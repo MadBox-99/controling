@@ -18,7 +18,7 @@ return new class extends Migration
 
             $table->date('date')->index();
             $table->text('query');
-            $table->string('country', 2)->nullable();
+            $table->string('country', 5)->nullable();
             $table->string('device', 20)->index();
             $table->integer('impressions')->default(0);
             $table->integer('clicks')->default(0);
